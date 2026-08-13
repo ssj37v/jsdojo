@@ -1,0 +1,8 @@
+node_modules/
+.idea/
+.vscode/
+coverage/
+
+# 학습자 개인 산출물 — 저장소에 커밋하지 않는다
+workspace/
+.dojo/

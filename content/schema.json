@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jsdojo.local/content/schema.json",
+  "title": "JS Dojo 챕터 계약",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "goal", "steps"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^ch[0-9]{2}$",
+      "description": "챕터 식별자. 정렬과 진도 기록의 키."
+    },
+    "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "goal": {
+      "type": "string",
+      "minLength": 1,
+      "description": "이 챕터를 마치면 학습자가 할 수 있게 되는 것. 한 문장."
+    },
+    "intro": { "type": "string", "description": "챕터 도입 상황 설정(마크다운 아님, 평문)." },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/step" }
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "concept", "goal", "teach", "verify"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^ch[0-9]{2}-s[0-9]{2}$" },
+        "concept": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "이 스텝이 도입하는 새 개념 하나. 작업기억 한계 때문에 복수 금지."
+        },
+        "goal": { "type": "string", "minLength": 1, "description": "학습자가 이 스텝에서 달성할 것." },
+        "teach": { "type": "string", "minLength": 1, "description": "개념·문법 설명." },
+        "kind": {
+          "enum": ["command", "edit", "inspect"],
+          "default": "edit",
+          "description": "command=터미널 명령 실행, edit=파일 수정, inspect=읽고 답하기."
+        },
+        "boss": {
+          "type": "boolean",
+          "default": false,
+          "description": "true면 힌트와 페이드 지원 없이 복합 과제로 출제한다."
+        },
+        "external": {
+          "type": "boolean",
+          "default": false,
+          "description": "GitHub·Vercel 같은 외부 서비스가 필요한 스텝. 학습자 환경에서는 정상 검증하지만 자동 검증 하네스는 건너뛴다."
+        },
+        "setup": { "$ref": "#/$defs/setup" },
+        "predict": { "$ref": "#/$defs/predict" },
+        "fade": { "$ref": "#/$defs/fade" },
+        "hints": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "3단 힌트. [관찰 유도, 위치 지목, 코드 제시] 순서로 점점 구체화한다."
+        },
+        "verify": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/check" }
+        },
+        "review_card": { "$ref": "#/$defs/reviewCard" },
+        "explain": { "$ref": "#/$defs/explain" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "boss": { "const": true } }, "required": ["boss"] },
+          "then": { "not": { "required": ["hints"] } },
+          "else": { "required": ["hints"] }
+        }
+      ]
+    },
+    "setup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenario", "announce"],
+      "description": "스텝에 들어가기 전에 연출할 상황. 학습자 저장소를 변형하므로 한 번만 적용된다.",
+      "properties": {
+        "scenario": {
+          "enum": ["ensure_remote", "teammate_push"],
+          "description": "dojo/scenario.mjs 의 SCENARIOS 에 등록된 이름."
+        },
+        "announce": {
+          "type": "string",
+          "minLength": 1,
+          "description": "무슨 일이 일어났는지 학습자에게 알리는 문장. 몰래 바꾸지 않는다."
+        },
+        "file": { "type": "string", "description": "teammate_push: 동료가 건드린 파일." },
+        "content": { "type": "string", "description": "teammate_push: 그 파일의 새 내용." },
+        "message": { "type": "string", "description": "teammate_push: 동료의 커밋 메시지." },
+        "branch": { "type": "string", "default": "main" }
+      }
+    },
+    "predict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["question", "answer_pattern", "reveal"],
+      "properties": {
+        "question": { "type": "string", "minLength": 1 },
+        "answer_pattern": { "type": "string", "description": "학습자 예측을 판정할 정규식(대소문자 무시)." },
+        "reveal": { "type": "string", "minLength": 1, "description": "예측 후 보여줄 정답 해설." }
+      }
+    },
+    "fade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["copy", "fill", "recall"],
+      "properties": {
+        "copy": { "type": "string", "minLength": 1, "description": "1단계: 완성 코드 전체 제시." },
+        "fill": { "type": "string", "minLength": 1, "description": "2단계: 핵심을 ____ 로 비운 코드." },
+        "recall": { "type": "string", "minLength": 1, "description": "3단계: 목표 문장만 제시." }
+      }
+    },
+    "explain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["question", "model_answer"],
+      "description": "통과 후 자기설명. 답을 받은 뒤 모범답안을 보여준다. 통과 여부에는 영향을 주지 않는다.",
+      "properties": {
+        "question": { "type": "string", "minLength": 1 },
+        "model_answer": { "type": "string", "minLength": 1, "description": "학습자가 답한 뒤에만 공개한다." },
+        "keywords": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["term", "nudge"],
+            "properties": {
+              "term": { "type": "string", "minLength": 1, "description": "답에 나오면 좋은 핵심어." },
+              "nudge": { "type": "string", "minLength": 1, "description": "빠졌을 때 짚어 줄 한 줄." }
+            }
+          },
+          "description": "빠진 핵심어를 짚어 주기 위한 목록. 채점이 아니라 되짚기용이다."
+        }
+      }
+    },
+    "reviewCard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["front", "back"],
+      "properties": {
+        "front": { "type": "string", "minLength": 1, "description": "인출 질문." },
+        "back": { "type": "string", "minLength": 1, "description": "정답." },
+        "answer_pattern": { "type": "string", "description": "자동 채점용 정규식. 없으면 자기 채점." }
+      }
+    },
+    "check": {
+      "oneOf": [
+        { "$ref": "#/$defs/fsCheck" },
+        { "$ref": "#/$defs/cmdCheck" },
+        { "$ref": "#/$defs/gitCheck" }
+      ]
+    },
+    "fsCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "label", "path"],
+      "properties": {
+        "type": { "const": "fs" },
+        "label": { "type": "string", "minLength": 1, "description": "학습자에게 보여줄 검사 이름." },
+        "path": { "type": "string", "minLength": 1, "description": "workspace 기준 상대 경로." },
+        "exists": { "type": "boolean", "default": true },
+        "matches": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "모두 일치해야 하는 정규식 목록."
+        },
+        "not_matches": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "하나라도 일치하면 실패하는 정규식 목록."
+        },
+        "json_has": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "JSON 파일에서 존재해야 하는 점 표기 경로(예: dependencies.clsx)."
+        }
+      }
+    },
+    "cmdCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "label", "run"],
+      "properties": {
+        "type": { "const": "cmd" },
+        "label": { "type": "string", "minLength": 1 },
+        "run": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "고정 argv. 셸 문자열을 쓰지 않는다."
+        },
+        "cwd": {
+          "enum": ["workspace", "root"],
+          "default": "workspace"
+        },
+        "expect_exit": { "type": "integer", "default": 0 },
+        "expect_output": { "type": "string", "description": "stdout+stderr에 일치해야 하는 정규식." },
+        "reject_output": { "type": "string", "description": "일치하면 실패하는 정규식." }
+      }
+    },
+    "gitCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "label", "assert"],
+      "properties": {
+        "type": { "const": "git" },
+        "label": { "type": "string", "minLength": 1 },
+        "assert": {
+          "enum": [
+            "repo_exists",
+            "has_commit",
+            "clean_worktree",
+            "branch_is",
+            "tracked",
+            "ignored",
+            "commit_message_matches"
+          ]
+        },
+        "value": { "type": "string", "description": "assert가 인자를 받을 때의 값(브랜치명·경로·정규식)." },
+        "min_count": { "type": "integer", "minimum": 1, "default": 1, "description": "has_commit이 요구하는 최소 커밋 수." }
+      }
+    }
+  }
+}

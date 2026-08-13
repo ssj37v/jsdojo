@@ -1,0 +1,18 @@
+{
+  "name": "jsdojo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "바닐라 자바스크립트 기초부터 디자인 패턴까지 실제로 손으로 익히는 대화형 CLI 튜토리얼",
+  "scripts": {
+    "dojo": "node dojo/cli.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "yaml": "2.9.0"
+  }
+}
