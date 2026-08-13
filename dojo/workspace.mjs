@@ -9,7 +9,15 @@ import { isInside } from './paths.mjs';
 
 /**
  * 워크스페이스를 통째로 지운다.
- * @returns {{removed:boolean, existed:boolean, blockedPath?:string, reason?:string}}
+ *
+ * 지우기를 두 단계로 나눈다. 곧장 rmSync 를 부르면 파일을 하나씩 지우다 잠긴 것을 만나
+ * 중간에서 멈추는데, 그러면 학습자에게는 코드 절반과 온전한 진도만 남는다.
+ * 코드는 사라졌는데 진도가 남으면 하지 않은 일이 통과된 상태가 되므로 그것부터 막는다.
+ *
+ *   1. 폴더 이름을 옆으로 바꾼다 — 실패하면 안에 있는 파일은 하나도 건드리지 않은 상태다.
+ *   2. 옮겨 놓은 것을 지운다 — 여기서 실패해도 workspace 는 이미 사라졌고 잔해만 남는다.
+ *
+ * @returns {{removed:boolean, existed:boolean, blockedPath?:string, reason?:string, residuePath?:string}}
  */
 export function removeWorkspace({ workspaceDir = WORKSPACE_DIR, baseDir = ROOT } = {}) {
   const target = path.resolve(workspaceDir);
@@ -25,17 +33,25 @@ export function removeWorkspace({ workspaceDir = WORKSPACE_DIR, baseDir = ROOT }
 
   if (!fs.existsSync(target)) return { removed: true, existed: false };
 
+  // 1단계. 이름 바꾸기는 통째로 되거나 통째로 안 되거나 둘 중 하나다.
+  const aside = `${target}.trash-${Date.now()}`;
   try {
-    // 잠긴 핸들은 잠시 뒤 풀리는 경우가 많아 몇 번 다시 시도한다.
-    fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
-    return { removed: true, existed: true };
+    fs.renameSync(target, aside);
   } catch (error) {
     return {
       removed: false,
       existed: true,
-      blockedPath: error.path,
+      blockedPath: error.path ?? target,
       reason: error.code ?? error.message,
     };
+  }
+
+  // 2단계. 잠긴 핸들은 잠시 뒤 풀리는 경우가 많아 몇 번 다시 시도한다.
+  try {
+    fs.rmSync(aside, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
+    return { removed: true, existed: true };
+  } catch (error) {
+    return { removed: true, existed: true, residuePath: aside, reason: error.code ?? error.message };
   }
 }
 

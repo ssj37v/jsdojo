@@ -221,6 +221,7 @@ test/                node --test
 |---|---|---|
 | [MANUAL.md](MANUAL.md) | 학습자 | 명령 전체, 학습 중 키, 문제 해결 |
 | README.md (이 문서) | 전체 | 프로젝트 소개, 학습 설계, 챕터 작성법 |
+| [HANDOFF.md](HANDOFF.md) | 이어받는 사람 | 지금 상태, 남은 작업, 엔진 동기화 규율 |
 | CLAUDE.md | 기여자 | 디렉터리 계약과 작업 규약 |
 
 엔진은 [codedojo](https://github.com/ssj37v/codedojo)(React·Next.js 커리큘럼)에서 그대로 이식했다.

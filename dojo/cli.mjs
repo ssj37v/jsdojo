@@ -125,9 +125,13 @@ async function restart(progress) {
   const result = removeWorkspace();
 
   if (!result.removed) {
-    ui.write(ui.failBox('workspace를 다 지우지 못했다.'));
+    ui.write(ui.failBox('workspace를 지우지 못했다.'));
     ui.write(ui.noteBox(describeBlock(result)));
-    ui.write(ui.noteBox('진도는 그대로 두었다. 위 항목을 확인한 뒤 다시 --restart 를 실행한다.'));
+    ui.write(
+      ui.noteBox(
+        '아무것도 지우지 않았다 — 코드도 진도도 그대로다.\n위 항목을 확인한 뒤 다시 --restart 를 실행한다.',
+      ),
+    );
     return 1;
   }
 
@@ -135,6 +139,15 @@ async function restart(progress) {
   fs.rmSync(FAKE_REMOTE_DIR, { recursive: true, force: true });
 
   ui.write(ui.passBox('처음 상태로 되돌렸다.'));
+  // 잔해는 학습에 아무 영향이 없지만, 남은 것을 숨기면 학습자가 나중에 영문을 모른다.
+  if (result.residuePath) {
+    ui.write(
+      ui.noteBox(
+        `다만 빈 껍데기 폴더가 남았다 — ${result.residuePath}\n`
+          + '도장 진행에는 영향이 없다. 편집기를 닫은 뒤 직접 지워도 되고 그냥 두어도 된다.',
+      ),
+    );
+  }
   ui.write(ui.noteBox(`npm run dojo 를 실행하면 1장부터 시작한다.\n되살리려면  npm run dojo -- --load ${backup.id}`));
   return 0;
 }
