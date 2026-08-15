@@ -26,7 +26,7 @@ export function runProcess(argv, options = {}) {
     const child = spawn(spawnPlan.file, spawnPlan.args, {
       cwd,
       windowsHide: true,
-      env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
+      env: cleanEnv(),
     });
 
     let output = '';
@@ -57,6 +57,19 @@ export function runProcess(argv, options = {}) {
       resolve({ code, output, timedOut, error: null });
     });
   });
+}
+
+/**
+ * 판정용 자식 프로세스의 환경. 물려받은 것 중 판정을 왜곡하는 것을 걷어 낸다.
+ *
+ * `NODE_TEST_CONTEXT` 가 있으면 `node --test` 는 중첩 실행으로 보고 **파일을 하나도 돌리지 않은 채
+ * 종료 코드 0으로 끝난다.** 판정이 그것을 통과로 읽으면 아무 테스트도 없이 통과하는 길이 열린다.
+ * 도장이 테스트 러너 안에서 돌아가는 경우(회귀 테스트)에도 학습자 환경과 같은 조건이어야 한다.
+ */
+export function cleanEnv(source = process.env) {
+  const env = { ...source, NO_COLOR: '1', FORCE_COLOR: '0' };
+  delete env.NODE_TEST_CONTEXT;
+  return env;
 }
 
 /** argv를 이 플랫폼에서 실제로 실행 가능한 형태로 바꾼다. */

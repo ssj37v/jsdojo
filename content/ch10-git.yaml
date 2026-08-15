@@ -1,0 +1,531 @@
+id: ch10
+title: "10장 · 이력을 남긴다"
+goal: "코드를 git으로 관리하고, 원격에 올리고, 남이 먼저 고친 것과 합친다"
+intro: |
+  지금까지 만든 것을 한번 세어 보자. 모듈 다섯 개, 테스트 파일 넷, 명령 셋.
+  꽤 큰 프로그램이 됐다. 그런데 **되돌아갈 지점이 하나도 없다.**
+
+  8장에서 `app.mjs` 를 통째로 뜯어고칠 때 잘못됐으면 어떻게 됐을까.
+  9장에서 테스트를 만들어 두었으니 '깨졌다'는 것은 알았겠지만, **깨지기 전으로 돌아갈 방법은 없다.**
+
+  git은 두 가지를 해 준다. 어느 시점으로든 돌아갈 수 있게 해 주고,
+  여러 사람이 같은 파일을 고쳐도 합칠 수 있게 해 준다.
+
+  이 장에서는 진짜 원격을 쓴다. 다만 GitHub가 아니라 도장이 만들어 주는 로컬 저장소다 —
+  계정도 네트워크도 필요 없고, 사고를 마음껏 내고 되돌릴 수 있다.
+
+steps:
+  - id: ch10-s01
+    concept: git-init
+    kind: command
+    goal: "workspace를 git 저장소로 만든다"
+    teach: |
+      workspace 폴더에서 딱 한 줄이면 된다.
+
+        git init -b main
+
+      `-b main` 은 첫 브랜치 이름을 `main` 으로 정하라는 뜻이다. 붙이지 않으면 git 버전에 따라
+      `master` 가 되기도 해서, 나중에 원격과 이름이 어긋난다.
+
+      이력을 남기려면 **누가 남겼는지** 를 git이 알아야 한다. 아직 설정한 적이 없다면
+      이 저장소에만 지정해 둔다.
+
+        git config user.name "내 이름"
+        git config user.email "me@example.com"
+
+      `--global` 을 붙이면 이 컴퓨터 전체에 적용된다. 지금은 붙이지 않는다 —
+      연습용 설정이 다른 프로젝트까지 따라가면 곤란하다.
+
+      확인한다.
+
+        git status
+
+      "No commits yet" 아래로 파일들이 잔뜩 나열되면 성공이다. 아직 아무것도 커밋하지 않았고,
+      git은 이 파일들을 **추적할지 말지 아직 모른다** 는 뜻이다.
+
+      **도장 폴더가 아니라 workspace 폴더 안에서** 해야 한다.
+      한 칸 위에서 하면 도장 저장소를 건드리게 된다. 도장의 검사는 그것을 잡아낸다.
+    predict:
+      question: "`git init` 만 하고 아무것도 커밋하지 않은 상태에서, 파일을 지워 버리면 되돌릴 수 있을까?"
+      answer_pattern: "없|못|아니|안 ?되"
+      reveal: |
+        되돌릴 수 없다. `git init` 은 이력을 담을 빈 상자를 만들 뿐이다.
+        되돌아갈 지점은 **커밋해야** 생긴다. 저장소를 만들어 두는 것만으로는 아무것도 지켜지지 않는다.
+    hints:
+      - "되돌아갈 지점을 만들려면 먼저 이력을 담을 곳이 있어야 한다."
+      - "workspace 폴더 안에서 저장소를 만든다. 첫 브랜치 이름을 main 으로 정해 둔다."
+      - "workspace 에서 git init -b main 을 치고, 필요하면 git config user.name 과 user.email 을 이 저장소에만 지정한다."
+    verify:
+      - type: git
+        label: "workspace 자신이 git 저장소다"
+        assert: repo_exists
+      - type: git
+        label: "첫 브랜치 이름이 main 이다"
+        assert: branch_is
+        value: main
+    review_card:
+      front: "git init 만 하고 커밋하지 않으면 되돌아갈 수 있는가?"
+      back: "없다. 되돌아갈 지점은 커밋해야 생긴다"
+      answer_pattern: "없|못|커밋"
+
+  - id: ch10-s02
+    concept: gitignore
+    kind: edit
+    goal: "데이터 파일이 이력에 끼어들지 않게 막는다"
+    teach: |
+      `git status` 를 보면 `tasks.json` 도 목록에 있다. 이것을 커밋하면 안 된다.
+
+      `tasks.json` 은 **내가 쓴 코드가 아니라 내 데이터** 다. 프로그램을 쓸 때마다 바뀌므로
+      커밋 이력이 "우유 사기 추가", "빨래 개기 완료"로 가득 차게 된다.
+      게다가 남과 나눌 때 내 개인 할 일 목록까지 딸려 간다.
+
+      순서가 중요하다. **커밋하기 전에 막아야 한다.**
+      한 번 커밋되면 나중에 지워도 이력에는 그대로 남는다. git은 잊는 법을 모른다.
+
+      `workspace/.gitignore` 를 만든다.
+
+        # 내 할 일 목록 — 코드가 아니라 데이터다
+        tasks.json
+
+        # 테스트가 잠깐 쓰고 지우는 파일
+        tasks.test.json
+
+      한 줄에 하나씩 적는다. `#` 로 시작하는 줄은 설명이다.
+      파일 이름 자체가 `.` 으로 시작하는 것에 주의한다 — `gitignore.txt` 가 아니다.
+
+      확인한다.
+
+        git status
+
+      이제 `tasks.json` 이 목록에서 사라진다. 대신 `.gitignore` 가 새로 나타난다 —
+      **이 파일은 커밋해야 한다.** 무엇을 무시할지는 팀이 함께 알아야 하는 약속이기 때문이다.
+    fade:
+      copy: |
+        # 내 할 일 목록 — 코드가 아니라 데이터다
+        tasks.json
+
+        # 테스트가 잠깐 쓰고 지우는 파일
+        tasks.test.json
+      fill: |
+        # 내 할 일 목록 — 코드가 아니라 데이터다
+        ____
+
+        # 테스트가 잠깐 쓰고 지우는 파일
+        tasks.test.json
+      recall: "코드가 아닌 데이터 파일들이 git에 잡히지 않도록 무시 목록을 만든다"
+    hints:
+      - "git status 에 나오는 것 중 '내가 쓴 코드'가 아닌 것이 하나 있다. 그것이 이력에 들어가면 곤란하다."
+      - "workspace 안에 무시 목록 파일을 만들고, 데이터 파일 이름을 한 줄에 하나씩 적는다."
+      - ".gitignore 파일을 만들어 tasks.json 과 tasks.test.json 을 적는다. 앞의 점을 빠뜨리지 않는다."
+    verify:
+      - type: fs
+        label: ".gitignore 가 데이터 파일을 적어 두었다"
+        path: ".gitignore"
+        matches: ['tasks\.json']
+      - type: git
+        label: "tasks.json 이 실제로 걸러진다"
+        assert: ignored
+        value: tasks.json
+      - type: git
+        label: "테스트가 쓰는 임시 파일도 걸러진다"
+        assert: ignored
+        value: tasks.test.json
+    review_card:
+      front: "이미 커밋한 파일을 나중에 .gitignore 에 적으면 이력에서 사라지는가?"
+      back: "사라지지 않는다. 그래서 커밋하기 전에 막아야 한다"
+      answer_pattern: "않|안|남|못"
+    explain:
+      question: "`tasks.json` 을 커밋하면 구체적으로 무엇이 곤란해지나?"
+      model_answer: |
+        커밋 이력이 데이터 변경으로 뒤덮인다. '무엇을 고쳤나'를 보려고 이력을 뒤지면
+        "우유 사기 추가" 같은 것만 잔뜩 나와 정작 코드 변경을 찾기 어려워진다.
+        남과 코드를 나눌 때 내 개인 할 일까지 딸려 가는 것도 문제고,
+        여러 사람이 각자 다른 데이터를 갖고 있으면 그 파일은 매번 충돌한다.
+      keywords:
+        - term: "이력"
+          nudge: "커밋 목록을 볼 때 무엇이 보이게 될지 떠올려 본다."
+        - term: "개인|내 것|데이터"
+          nudge: "그 파일에 담긴 것이 누구 것인지 생각해 본다."
+
+  - id: ch10-s03
+    concept: git-commit
+    kind: command
+    goal: "지금까지 만든 것을 첫 커밋으로 남긴다"
+    teach: |
+      먼저 이 프로젝트가 무엇인지 적어 둔다. `workspace/README.md` 를 만든다.
+
+        # 할 일 관리 CLI
+
+        바닐라 자바스크립트로 만든 명령줄 할 일 관리 도구.
+
+      이제 커밋한다. 두 걸음이다.
+
+        git add .
+        git commit -m "feat: 할 일 관리 CLI 첫 커밋"
+
+      `git add .` 는 '지금 폴더의 바뀐 것을 전부 담을 준비를 하라'는 뜻이다.
+      `.gitignore` 에 적은 것은 알아서 빠진다.
+
+      `git commit -m "..."` 이 실제로 이력에 남긴다.
+
+      **커밋 메시지는 남이 읽는 글이다.** '수정', 'ㅇㅇ', '작업' 같은 메시지는 아무것도 알려 주지 않는다.
+      널리 쓰이는 방식 하나를 익혀 둔다.
+
+        feat: 새 기능을 더했다
+        fix:  잘못된 것을 고쳤다
+        docs: 문서만 손봤다
+        test: 테스트를 더하거나 고쳤다
+
+      확인한다.
+
+        git log --oneline     한 줄씩 이력 보기
+        git status            "nothing to commit, working tree clean" 이면 성공
+
+      **커밋하기 전에 `node --test` 를 한 번 돌린다.** 깨진 상태를 이력에 남기면
+      나중에 그 지점으로 돌아갔을 때 쓸 수 없다. 도장의 검사도 이것을 함께 본다.
+    hints:
+      - "이력에 남기려면 무엇을 담을지 정하고, 그 다음 실제로 남기는 두 걸음이 필요하다."
+      - "README.md 를 만든 뒤 git add 로 담고 git commit -m 으로 남긴다. 메시지는 무엇을 했는지 알 수 있게 쓴다."
+      - "git add . 하고 git commit -m \"feat: 할 일 관리 CLI 첫 커밋\" 을 친다."
+    verify:
+      - type: fs
+        label: "README.md 로 프로젝트를 설명했다"
+        path: "README.md"
+        matches: ['할 일']
+      - type: git
+        label: "커밋이 남았다"
+        assert: has_commit
+      - type: git
+        label: "커밋 메시지가 무엇을 했는지 알려 준다"
+        assert: commit_message_matches
+        value: '(feat|fix|docs|test|refactor|chore)\s*:\s*\S'
+      - type: git
+        label: "빠뜨린 변경 없이 전부 담겼다"
+        assert: clean_worktree
+      - type: git
+        label: "app.mjs 가 추적되고 있다"
+        assert: tracked
+        value: app.mjs
+      - type: git
+        label: "데이터 파일은 여전히 빠져 있다"
+        assert: ignored
+        value: tasks.json
+      - type: cmd
+        label: "커밋한 상태에서 테스트가 통과한다"
+        run: ["node", "--test"]
+        expect_output: 'fail 0'
+    review_card:
+      front: "git add 와 git commit 은 각각 무엇을 하는가?"
+      back: "add 는 담을 것을 고르고, commit 이 실제로 이력에 남긴다"
+      answer_pattern: "add|담|고르|commit|남"
+
+  - id: ch10-s04
+    concept: remote-push
+    kind: command
+    goal: "이력을 원격 저장소에 올린다"
+    setup:
+      scenario: ensure_remote
+      announce: |
+        연습용 원격 저장소를 만들어 workspace의 origin 으로 등록해 두었다.
+        GitHub가 아니라 도장 폴더 안의 .dojo/remote.git 이다 — 계정도 네트워크도 필요 없다.
+        무엇을 해도 되돌릴 수 있으니 마음껏 사고를 내 보라.
+    teach: |
+      지금까지의 이력은 이 컴퓨터에만 있다. 폴더를 잃으면 전부 잃는다.
+      **원격 저장소** 는 그 이력을 다른 곳에 한 벌 더 두는 것이다.
+
+      원격은 방금 도장이 준비해 두었다. 확인해 본다.
+
+        git remote -v
+
+      `origin` 이라는 이름으로 등록돼 있을 것이다. `origin` 은 관례적인 이름일 뿐 특별하지 않다.
+
+      올린다.
+
+        git push -u origin main
+
+      `-u` 는 '앞으로 이 브랜치는 origin 의 main 과 짝'이라고 기억해 두라는 뜻이다.
+      한 번 해 두면 다음부터는 `git push` 만 쳐도 된다.
+
+      확인한다.
+
+        git ls-remote --heads origin
+
+      `refs/heads/main` 이 보이면 원격에 도착한 것이다.
+
+      **push 는 이력을 올리는 것이지 파일을 올리는 것이 아니다.**
+      커밋하지 않은 변경은 아무리 push 해도 가지 않는다. 그래서 순서가 늘 같다 —
+      고치고, 커밋하고, 그다음 push다.
+    predict:
+      question: "파일을 고치고 커밋하지 않은 채 `git push` 하면 그 변경이 원격에 올라갈까?"
+      answer_pattern: "아니|안|없|못|올라가지"
+      reveal: |
+        올라가지 않는다. push가 보내는 것은 **커밋** 이다. 커밋하지 않은 변경은 git이 보기에
+        아직 이력이 아니라 그냥 작업 중인 상태다.
+        "push 했는데 반영이 안 됐다"는 흔한 사고가 거의 이것이다 — 커밋을 빠뜨린 것이다.
+    hints:
+      - "이력이 이 컴퓨터에만 있으면 폴더를 잃는 순간 전부 잃는다."
+      - "이미 등록된 origin 으로 main 브랜치를 올린다. 짝을 기억시켜 두면 다음부터 편하다."
+      - "git push -u origin main 을 친다. git ls-remote --heads origin 으로 확인한다."
+    verify:
+      - type: cmd
+        label: "원격에 main 브랜치가 도착했다"
+        run: ["git", "ls-remote", "--heads", "origin", "main"]
+        expect_output: 'refs/heads/main'
+      - type: cmd
+        label: "원격이 내 마지막 커밋과 같은 지점을 가리킨다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const git = async (...args) => (await run('git', args)).stdout.trim()
+
+            const local = await git('rev-parse', 'HEAD')
+            const remote = (await git('ls-remote', 'origin', 'refs/heads/main')).split(/\s+/)[0]
+
+            assert.equal(
+              remote,
+              local,
+              '원격이 내 마지막 커밋과 다른 지점을 가리킨다 — 커밋한 뒤에 push 했는지 확인한다',
+            )
+      - type: git
+        label: "올리지 못한 변경이 남아 있지 않다"
+        assert: clean_worktree
+    review_card:
+      front: "커밋하지 않은 변경도 push 하면 원격에 올라가는가?"
+      back: "올라가지 않는다. push 가 보내는 것은 커밋이다"
+      answer_pattern: "않|안|없|커밋"
+
+  - id: ch10-s05
+    concept: pull-conflict
+    kind: command
+    goal: "동료가 먼저 고쳐 둔 것과 내 변경을 합친다"
+    setup:
+      scenario: teammate_push
+      file: README.md
+      message: "docs: 무의존성을 강조한다"
+      content: |
+        # 할 일 관리 CLI
+
+        Node 표준 기능만으로 만든 명령줄 할 일 관리 도구. 의존성이 없다.
+      announce: |
+        자리를 비운 사이 동료 Mina 가 원격에 먼저 push 해 두었다.
+        같은 파일(README.md)의 같은 줄을 고쳤다. 이제 그대로는 push 할 수 없다.
+    teach: |
+      혼자 쓸 때는 원격이 그냥 백업이다. 둘이 되는 순간 이야기가 달라진다.
+
+      동료가 먼저 올렸다. 내가 지금 push 하면 git이 거절한다 —
+      내 이력에는 동료의 커밋이 없으므로, 그대로 올리면 동료가 한 일이 사라지기 때문이다.
+      **git은 남의 작업을 덮어쓰는 것을 막는다.**
+
+      먼저 나도 내 변경을 만들어 커밋한다. `README.md` 의 설명 줄을 이렇게 바꾼다.
+
+        # 할 일 관리 CLI
+
+        파일에 저장되는 명령줄 할 일 관리 도구. add · done · list 세 명령을 지원한다.
+
+      그리고 커밋한다.
+
+        git add README.md
+        git commit -m "docs: 지원하는 명령을 적는다"
+
+      이제 받아 온다.
+
+        git pull --no-rebase origin main
+
+      **충돌** 이 난다. 둘이 같은 줄을 다르게 고쳤으니 git은 어느 쪽이 맞는지 알 수 없다.
+      `README.md` 를 열어 보면 이렇게 되어 있다.
+
+        <<<<<<< HEAD
+        파일에 저장되는 명령줄 할 일 관리 도구. add · done · list 세 명령을 지원한다.
+        =======
+        Node 표준 기능만으로 만든 명령줄 할 일 관리 도구. 의존성이 없다.
+        >>>>>>> ...
+
+      `<<<<<<<` 와 `=======` 사이가 내 것, `=======` 와 `>>>>>>>` 사이가 동료 것이다.
+
+      **여기서 하는 일은 고르기가 아니라 판단이다.** 둘 다 맞는 말이므로 합친다.
+      표시 줄 세 개를 **모두 지우고** 하나의 문장으로 만든다.
+
+        # 할 일 관리 CLI
+
+        Node 표준 기능만으로 만든 명령줄 할 일 관리 도구. 의존성이 없다.
+        add · done · list 세 명령을 지원한다.
+
+      다 고쳤으면 해소했다고 알린다.
+
+        git add README.md
+        git commit --no-edit
+
+      `--no-edit` 은 git이 준비해 둔 병합 메시지를 그대로 쓰겠다는 뜻이다.
+      마지막으로 올린다.
+
+        git push
+
+      `git log --oneline` 을 보면 내 커밋과 동료의 커밋이 **둘 다** 남아 있다.
+      합친다는 것은 어느 하나를 버리는 것이 아니다.
+    hints:
+      - "그대로 올릴 수 없는 이유는 내 이력에 동료의 커밋이 없기 때문이다. 먼저 받아 와야 한다."
+      - "내 변경을 커밋한 뒤 pull 하면 충돌이 난다. 표시 줄을 지우고 양쪽 내용을 하나로 합친 다음 다시 커밋한다."
+      - "git pull --no-rebase origin main → README.md 에서 <<<<<<< ======= >>>>>>> 세 줄을 지우고 두 문장을 합친다 → git add README.md → git commit --no-edit → git push"
+    verify:
+      - type: fs
+        label: "충돌 표시가 남아 있지 않다"
+        path: "README.md"
+        not_matches: ['<<<<<<<', '=======', '>>>>>>>']
+      - type: fs
+        label: "동료가 쓴 내용이 살아 있다"
+        path: "README.md"
+        matches: ['의존성이 없다']
+      - type: fs
+        label: "내가 쓴 내용도 살아 있다"
+        path: "README.md"
+        matches: ['add · done · list']
+      - type: git
+        label: "해소하고 커밋까지 마쳤다"
+        assert: clean_worktree
+      - type: cmd
+        label: "동료의 커밋이 내 이력에 들어와 있다"
+        run: ["git", "log", "--oneline"]
+        expect_output: '무의존성을 강조한다'
+      - type: cmd
+        label: "합친 결과가 원격에도 올라갔다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const git = async (...args) => (await run('git', args)).stdout.trim()
+
+            const local = await git('rev-parse', 'HEAD')
+            const remote = (await git('ls-remote', 'origin', 'refs/heads/main')).split(/\s+/)[0]
+
+            assert.equal(remote, local, '합친 뒤 push 하지 않았다 — 원격은 아직 동료 것만 갖고 있다')
+    review_card:
+      front: "충돌이 났을 때 <<<<<<< 와 ======= 사이에 있는 것은 누구의 내용인가?"
+      back: "내 것(HEAD). ======= 아래가 받아 온 쪽이다"
+      answer_pattern: "내|HEAD|나"
+    explain:
+      question: "git이 그냥 최신 것으로 덮어쓰지 않고 굳이 충돌을 내는 이유는 무엇일까?"
+      model_answer: |
+        어느 쪽이 맞는지 git은 알 수 없기 때문이다. 둘 다 사람이 의도를 갖고 고친 것이고,
+        시간이 늦은 쪽이 옳다는 보장은 전혀 없다. 자동으로 덮어썼다면 누군가의 작업이
+        아무 흔적도 없이 사라지고, 사라졌다는 사실조차 아무도 모른다.
+        충돌은 고장이 아니라 **판단이 필요한 지점을 사람에게 넘기는 장치** 다.
+      keywords:
+        - term: "알 수 없|모른"
+          nudge: "git 이 두 변경을 보고 무엇을 판단할 수 있는지 생각해 본다."
+        - term: "사라|잃"
+          nudge: "자동으로 덮어썼다면 무슨 일이 벌어질지 떠올려 본다."
+
+  - id: ch10-s06
+    concept: versioned-project
+    kind: command
+    boss: true
+    goal: "가지를 쳐서 작업하고, 합치고, 원격까지 올린다"
+    teach: |
+      마지막이다. 힌트는 없다.
+
+      지금까지는 `main` 에서 바로 고쳤다. 실제로는 그러지 않는다 —
+      **작업할 것마다 가지를 치고, 끝나면 합친다.** 그래야 `main` 은 언제나 돌아가는 상태로 남는다.
+
+      쓸 명령은 셋뿐이다.
+
+        git switch -c 가지이름     새 가지를 만들고 그리로 옮긴다
+        git switch main            main 으로 돌아온다
+        git merge 가지이름          그 가지의 작업을 지금 가지에 합친다
+
+      할 일은 이렇다.
+
+        1. `fix-usage` 라는 가지를 만들어 그리로 옮긴다
+        2. `app.mjs` 의 사용법 문구 끝에 예시를 덧붙인다. 이렇게 바꾼다
+
+             사용법: node app.mjs <add 제목 | done 제목 | list>   (예: node app.mjs add "우유 사기")
+
+        3. `node --test` 로 깨지지 않았는지 확인하고 커밋한다 (메시지는 `docs:` 로 시작한다)
+        4. `main` 으로 돌아와 그 가지를 합친다
+        5. 원격에 올린다
+
+      끝나면 이 다섯이 모두 참이어야 한다.
+
+        · 지금 있는 가지는 main 이다
+        · 커밋하지 않은 변경이 없다
+        · 사용법 예시가 실제로 화면에 나온다
+        · 원격이 내 마지막 커밋과 같은 지점을 가리킨다
+        · 데이터 파일은 여전히 이력에 없다
+
+      **이번 장의 검사는 화면이 아니라 저장소 상태를 본다.** "커밋했다"고 말해도 소용이 없다.
+    verify:
+      - type: git
+        label: "합치고 main 으로 돌아왔다"
+        assert: branch_is
+        value: main
+      - type: git
+        label: "커밋하지 않은 변경이 없다"
+        assert: clean_worktree
+      - type: cmd
+        label: "가지에서 한 작업이 이력에 들어와 있다"
+        run: ["git", "log", "--oneline"]
+        expect_output: 'docs:'
+      - type: cmd
+        label: "사용법에 예시가 나온다"
+        run: ["node", "app.mjs"]
+        expect_exit: 1
+        expect_output: '예: node app\.mjs add'
+      - type: cmd
+        label: "테스트가 여전히 통과한다"
+        run: ["node", "--test"]
+        expect_output: 'fail 0'
+      - type: git
+        label: "데이터 파일은 여전히 이력에 없다"
+        assert: ignored
+        value: tasks.json
+      - type: cmd
+        label: "원격이 내 마지막 커밋과 같은 지점을 가리킨다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const git = async (...args) => (await run('git', args)).stdout.trim()
+
+            const local = await git('rev-parse', 'HEAD')
+            const remote = (await git('ls-remote', 'origin', 'refs/heads/main')).split(/\s+/)[0]
+
+            assert.equal(remote, local, '합친 뒤 push 하지 않았다')
+
+            // 가지에서 한 작업이 정말 이 이력 안에 있는지 본다.
+            const log = await git('log', '--oneline', '--all')
+            assert.match(log, /docs:/, '가지에서 한 커밋을 찾을 수 없다')
+    review_card:
+      front: "가지를 쳐서 작업하면 main 에 무엇이 보장되는가?"
+      back: "언제나 돌아가는 상태로 남는다. 작업 중인 것이 섞이지 않는다"
+      answer_pattern: "돌아가|안정|깨지지|정상"
+    explain:
+      question: "혼자 하는 프로젝트인데도 가지를 쳐서 작업하는 것이 도움이 될까?"
+      model_answer: |
+        도움이 된다. 하던 작업이 반쯤 된 상태에서 급한 것을 고쳐야 할 때, 가지가 있으면
+        하던 것을 그대로 두고 main 에서 따로 고칠 수 있다. 가지 없이 한 곳에서 하면
+        섞인 변경을 손으로 갈라내야 한다.
+        또 가지 하나가 '작업 하나'라는 단위를 만들어 줘서, 나중에 이력을 볼 때
+        무엇이 어떤 목적으로 들어왔는지 읽힌다.
+      keywords:
+        - term: "섞이"
+          nudge: "하던 작업 도중에 급한 것을 고쳐야 하는 상황을 떠올려 본다."
+        - term: "단위|묶"
+          nudge: "이력을 나중에 읽을 때 무엇이 도움이 되는지 생각해 본다."

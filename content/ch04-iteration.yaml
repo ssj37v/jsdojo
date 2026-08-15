@@ -1,0 +1,556 @@
+id: ch04
+title: "4장 · 훑고 고른다"
+goal: "목록 전체를 순회해 보여 주고, 원하는 것을 골라내고 찾아낸다"
+intro: |
+  3장에서 목록이 생겼다. 그런데 지금 `list` 는 처음과 마지막만 보여 준다.
+  할 일이 다섯 개가 되어도 가운데 세 개는 영영 보이지 않는다.
+  `done` 은 더 심하다 — 제목으로 찾지 못해서 무조건 첫 번째만 완료 처리한다.
+
+  두 구멍의 원인은 같다. **자리 번호를 하나씩 직접 적는 방식으로는 목록을 다룰 수 없다.**
+  개수가 몇 개든 통하는 방법이 필요하다.
+
+  이 장에서는 배열을 다루는 네 가지를 익힌다 — 하나씩 훑기(`for-of`), 전부 바꾸기(`map`),
+  조건에 맞는 것만 고르기(`filter`), 하나 찾아내기(`find`).
+  이 넷은 앞으로 자바스크립트를 쓰는 내내 손에서 놓지 않게 된다.
+
+steps:
+  - id: ch04-s01
+    concept: for-of
+    kind: edit
+    goal: "목록 전체를 하나씩 훑어 찍는다"
+    teach: |
+      배열의 값을 하나씩 꺼내 같은 일을 반복하려면 `for...of` 를 쓴다.
+
+        for (const task of tasks) {
+          ...task 로 할 일...
+        }
+
+      `tasks` 에서 값을 하나씩 꺼내 `task` 라는 이름으로 넣어 주고, 중괄호 안을 그만큼 반복한다.
+      개수가 두 개든 백 개든 코드는 그대로다.
+
+      전체를 찍는 일은 `add` 뒤에도 `list` 에서도 필요하다. 두 번 적을 일이면 함수로 묶는다 —
+      2장에서 한 그대로다.
+
+        function printAll(items) {
+          for (const task of items) {
+            console.log(formatTask(task.title, task.done))
+          }
+        }
+
+      이제 `add` 와 `list` 의 '처음/마지막' 두 줄을 지우고 `printAll(tasks)` 한 줄로 바꾼다.
+
+        if (command === 'add' && title) {
+          tasks.push({ title: title, done: false })
+          console.log(`추가: ${formatTask(title)}`)
+          printAll(tasks)
+        } else if (...) {
+          ...
+        } else if (command === 'list') {
+          console.log(`할 일 ${tasks.length}개`)
+          printAll(tasks)
+        }
+
+      매개변수 이름을 `items` 로 둔 것은 바깥의 `tasks` 와 헷갈리지 않기 위해서다.
+      함수는 넘겨받은 것으로만 일해야 나중에 다른 목록에도 쓸 수 있다.
+    fade:
+      copy: |
+        function printAll(items) {
+          for (const task of items) {
+            console.log(formatTask(task.title, task.done))
+          }
+        }
+      fill: |
+        function printAll(items) {
+          for (const task ____ items) {
+            console.log(formatTask(task.____, task.____))
+          }
+        }
+      recall: "목록 전체를 한 줄씩 찍는 함수를 만들고, add 와 list 가 그것을 쓰게 한다"
+    hints:
+      - "처음과 마지막만 보인다면 자리 번호를 직접 적고 있다는 뜻이다. 개수와 무관한 방법이 필요하다."
+      - "전체를 찍는 함수를 하나 만들고, add 와 list 의 '처음/마지막' 두 줄을 그 함수 호출로 바꾼다."
+      - "function printAll(items) { for (const task of items) { console.log(formatTask(task.title, task.done)) } } 를 만들고 printAll(tasks) 로 부른다."
+    verify:
+      - type: fs
+        label: "for...of 로 목록을 훑는다"
+        path: "app.mjs"
+        matches: ['for\s*\(\s*const\s+\w+\s+of\s+\w+\s*\)']
+      - type: cmd
+        label: "list 는 목록의 모든 할 일을 보여 준다"
+        run: ["node", "app.mjs", "list"]
+        expect_output: '\[ \] 우유 사기[\s\S]*\[x\] 빨래 개기'
+      - type: cmd
+        label: "add 뒤에도 전체가 보인다 — 방금 넣은 것을 포함해서"
+        run: ["node", "app.mjs", "add", "장보기"]
+        expect_output: '\[ \] 우유 사기[\s\S]*\[ \] 장보기'
+      - type: cmd
+        label: "다른 제목을 줘도 그것이 목록에 나타난다"
+        run: ["node", "app.mjs", "add", "설거지"]
+        expect_output: '\[ \] 설거지'
+        reject_output: '장보기'
+    review_card:
+      front: "배열의 값을 하나씩 꺼내 반복하는 문법은?"
+      back: "for (const 값 of 배열) { ... }"
+      answer_pattern: "for.*of|for of|포오브"
+
+  - id: ch04-s02
+    concept: block-scope
+    kind: edit
+    goal: "목록에 번호를 붙인다"
+    teach: |
+      목록에 번호가 있어야 사람이 가리킬 수 있다. `1. 우유 사기` 처럼.
+
+      번호는 회전마다 하나씩 늘어야 한다. 그러려면 값을 바꿀 수 있는 이름이 필요하고,
+      그 이름이 **회전 사이에 살아남아야** 한다. 여기서 블록 스코프가 문제가 된다.
+
+      `const` 와 `let` 으로 선언한 이름은 **자기가 속한 중괄호 블록 안에서만 산다.**
+      블록이 끝나면 사라진다. `for` 의 중괄호도 블록이고, 회전할 때마다 새로 시작한다.
+
+        for (const task of items) {
+          let index = 1        ← 매 회전마다 새로 만들어져 항상 1이다
+          ...
+        }
+
+      그래서 번호는 반복문 **밖** 에 두어야 한다.
+
+        function printAll(items) {
+          let index = 1
+          for (const task of items) {
+            console.log(`${index}. ${formatTask(task.title, task.done)}`)
+            index = index + 1
+          }
+        }
+
+      값이 바뀌므로 `const` 가 아니라 `let` 이다. 1장에서 '기본은 const, 바꿔야 할 때만 let' 이라고
+      한 그 '바꿔야 할 때'가 바로 이런 경우다.
+    predict:
+      question: "`let index = 1` 을 for 블록 **안** 에 두면 목록에 번호가 어떻게 찍힐까?"
+      answer_pattern: "1|하나|같|모두|전부"
+      reveal: |
+        전부 `1.` 로 찍힌다. 블록 안의 선언은 회전마다 새로 만들어지므로, 늘려 놓은 값이 다음 회전으로
+        넘어가지 못하고 매번 처음부터 다시 시작한다. 반복 사이에 이어져야 하는 값은 반복문 밖에 둔다.
+    fade:
+      copy: |
+        function printAll(items) {
+          let index = 1
+          for (const task of items) {
+            console.log(`${index}. ${formatTask(task.title, task.done)}`)
+            index = index + 1
+          }
+        }
+      fill: |
+        function printAll(items) {
+          ____ index = 1
+          for (const task of items) {
+            console.log(`${index}. ${formatTask(task.title, task.done)}`)
+            index = ____
+          }
+        }
+      recall: "목록의 각 줄 앞에 1부터 이어지는 번호를 붙인다"
+    hints:
+      - "번호가 전부 1로 나온다면, 그 이름이 회전마다 새로 만들어지고 있다는 뜻이다."
+      - "번호를 반복문 밖에서 선언하고, 한 줄 찍을 때마다 안에서 하나 늘린다."
+      - "for 앞에 let index = 1 을 두고, 블록 안에서 `${index}. ` 을 앞에 붙인 뒤 index = index + 1 을 한다."
+    verify:
+      - type: fs
+        label: "값이 바뀌는 이름은 let 으로 선언했다"
+        path: "app.mjs"
+        matches: ['let\s+\w+\s*=']
+      - type: cmd
+        label: "번호가 1부터 이어진다"
+        run: ["node", "app.mjs", "list"]
+        expect_output: '1\. \[ \] 우유 사기[\s\S]*2\. \[x\] 빨래 개기'
+      - type: cmd
+        label: "추가하면 그다음 번호가 붙는다"
+        run: ["node", "app.mjs", "add", "장보기"]
+        expect_output: '3\. \[ \] 장보기'
+      - type: cmd
+        label: "다른 제목을 줘도 번호는 이어진다"
+        run: ["node", "app.mjs", "add", "설거지"]
+        expect_output: '3\. \[ \] 설거지'
+        reject_output: '장보기'
+    review_card:
+      front: "중괄호 블록 안에서 let 으로 선언한 이름은 블록 밖에서 쓸 수 있는가?"
+      back: "쓸 수 없다. const·let 은 자기가 속한 블록 안에서만 산다"
+      answer_pattern: "없|못|안 ?된|블록"
+
+  - id: ch04-s03
+    concept: arrow-function
+    kind: edit
+    goal: "한 줄짜리 함수를 짧게 쓴다"
+    teach: |
+      `formatTask(task.title, task.done)` 이라는 표현이 여기저기 반복된다. 짧은 이름을 붙일 때가 됐다.
+
+      값 하나를 돌려주기만 하는 작은 함수는 **화살표 함수** 로 짧게 쓴다.
+
+        const render = (task) => formatTask(task.title, task.done)
+
+      `function` 이라는 낱말도, 중괄호도, `return` 도 없다. 화살표 오른쪽의 값이 곧 돌려주는 값이다.
+      2장에서 쓴 아래 둘은 똑같은 일을 한다.
+
+        function render(task) { return formatTask(task.title, task.done) }
+        const render = (task) => formatTask(task.title, task.done)
+
+      본문이 여러 줄이면 중괄호를 쓰고 `return` 을 적어야 한다. 한 줄일 때만 생략된다.
+
+      `printAll` 안에서 이 이름을 쓴다.
+
+        const render = (task) => formatTask(task.title, task.done)
+
+        function printAll(items) {
+          let index = 1
+          for (const task of items) {
+            console.log(`${index}. ${render(task)}`)
+            index = index + 1
+          }
+        }
+
+      짧게 쓰는 것 자체가 목적은 아니다. 곧 배울 `map`·`filter`·`find` 에 **함수를 값으로 넘겨야**
+      하는데, 그때 이 표기가 없으면 코드가 읽히지 않는다. 그 준비다.
+    fade:
+      copy: |
+        const render = (task) => formatTask(task.title, task.done)
+      fill: |
+        const render = (task) ____ formatTask(task.title, task.done)
+      recall: "할 일 하나를 받아 표시용 문장으로 바꾸는 한 줄짜리 함수를 화살표로 만들고, printAll 이 그것을 쓰게 한다"
+    hints:
+      - "같은 표현이 여러 군데 반복되고 있다. 이름을 붙이면 한 곳만 고치면 된다."
+      - "printAll 위에 const 로 이름을 두고 화살표로 함수를 만든다. 중괄호와 return 은 필요 없다."
+      - "const render = (task) => formatTask(task.title, task.done) 를 두고, printAll 안에서 render(task) 로 부른다."
+    verify:
+      - type: fs
+        label: "화살표 함수를 만들었다"
+        path: "app.mjs"
+        matches: ['const\s+\w+\s*=\s*\(?\s*\w+\s*\)?\s*=>']
+      - type: cmd
+        label: "목록은 그대로 번호와 함께 나온다"
+        run: ["node", "app.mjs", "list"]
+        expect_output: '1\. \[ \] 우유 사기[\s\S]*2\. \[x\] 빨래 개기'
+      - type: cmd
+        label: "추가한 것도 그대로 나온다"
+        run: ["node", "app.mjs", "add", "장보기"]
+        expect_output: '3\. \[ \] 장보기'
+    review_card:
+      front: "값 하나만 돌려주는 화살표 함수에서 생략되는 두 가지는?"
+      back: "중괄호와 return"
+      answer_pattern: "중괄호|return|리턴"
+
+  - id: ch04-s04
+    concept: array-map
+    kind: edit
+    goal: "목록을 표시할 줄들의 배열로 변환한다"
+    teach: |
+      번호를 세려고 `let index` 를 손으로 늘리고 있다. 배열에는 이미 자리 번호가 있는데도.
+
+      `map` 은 배열의 각 항목을 다른 값으로 바꾼 **새 배열** 을 만든다. 원본은 건드리지 않는다.
+
+        const lines = tasks.map((task) => render(task))
+
+      `map` 에 넘긴 함수는 두 번째 값으로 **자리 번호** 도 받는다. 0부터 센다.
+
+        const lines = items.map((task, i) => `${i + 1}. ${render(task)}`)
+
+      이제 `printAll` 에서 손으로 세던 번호가 사라진다.
+
+        function printAll(items) {
+          const lines = items.map((task, i) => `${i + 1}. ${render(task)}`)
+          for (const line of lines) {
+            console.log(line)
+          }
+        }
+
+      바뀐 것은 '어떻게 세는가'가 아니라 **'무엇을 만드는가'** 로 생각을 옮긴 것이다.
+      한 줄씩 찍는 절차 대신, 찍을 줄들의 목록을 먼저 만들었다.
+      이 사고방식이 다음 두 스텝(`filter`·`find`)과 나중의 디자인 패턴까지 이어진다.
+    predict:
+      question: "`tasks.map(...)` 을 부르고 나면 원래 `tasks` 배열은 어떻게 될까?"
+      answer_pattern: "그대로|안 ?바|변하지|유지|원본"
+      reveal: |
+        그대로다. `map` 은 새 배열을 만들어 돌려줄 뿐 원본을 건드리지 않는다.
+        `push` 처럼 원본을 바꾸는 것과 `map` 처럼 새로 만드는 것을 갈라 두는 습관이 중요하다.
+        원본을 안 건드리는 쪽이 훨씬 안전하다 — 남이 준 배열을 망가뜨릴 걱정이 없다.
+    fade:
+      copy: |
+        function printAll(items) {
+          const lines = items.map((task, i) => `${i + 1}. ${render(task)}`)
+          for (const line of lines) {
+            console.log(line)
+          }
+        }
+      fill: |
+        function printAll(items) {
+          const lines = items.____((task, i) => `${i ____ 1}. ${render(task)}`)
+          for (const line of lines) {
+            console.log(line)
+          }
+        }
+      recall: "손으로 세던 번호를 없애고, map 으로 번호가 붙은 줄들의 배열을 만들어 찍는다"
+    hints:
+      - "배열은 이미 자리 번호를 알고 있다. 손으로 셀 필요가 없다."
+      - "printAll 안에서 items 를 줄 배열로 바꾸고, 그 배열을 for...of 로 찍는다. let 카운터는 지운다."
+      - "items.map((task, i) => `${i + 1}. ${render(task)}`) 로 줄 배열을 만든 뒤 for...of 로 찍는다."
+    verify:
+      - type: fs
+        label: "map 으로 새 배열을 만든다"
+        path: "app.mjs"
+        matches: ['\.map\(']
+      - type: cmd
+        label: "번호는 여전히 1부터 이어진다"
+        run: ["node", "app.mjs", "list"]
+        expect_output: '1\. \[ \] 우유 사기[\s\S]*2\. \[x\] 빨래 개기'
+      - type: cmd
+        label: "추가하면 그다음 번호가 붙는다"
+        run: ["node", "app.mjs", "add", "장보기"]
+        expect_output: '3\. \[ \] 장보기'
+      - type: cmd
+        label: "다른 제목을 줘도 마찬가지다"
+        run: ["node", "app.mjs", "add", "설거지"]
+        expect_output: '3\. \[ \] 설거지'
+        reject_output: '장보기'
+    review_card:
+      front: "map 이 돌려주는 것은 무엇인가?"
+      back: "각 항목을 바꾼 새 배열. 원본은 그대로 둔다"
+      answer_pattern: "새 ?배열|new|원본"
+    explain:
+      question: "`map` 은 원본을 그대로 두고 새 배열을 만든다. 원본을 직접 고치는 것에 비해 무엇이 나은가?"
+      model_answer: |
+        누가 무엇을 망가뜨렸는지 추적할 필요가 없어진다. 원본을 고치는 함수에 배열을 넘기면, 그 함수를
+        부른 뒤 내 배열이 어떻게 됐는지 알 수 없다. 새 배열을 돌려주는 함수는 내가 넘긴 것을 건드리지
+        않는다고 약속하는 셈이라, 부르는 쪽이 마음 놓고 쓸 수 있다. 프로그램이 커질수록 이 차이가 커진다.
+      keywords:
+        - term: "원본"
+          nudge: "함수에 배열을 넘겼을 때 그 배열이 어떻게 될지 확신할 수 있는지 생각해 본다."
+        - term: "안전"
+          nudge: "여러 곳에서 같은 배열을 쓰고 있다면 무슨 일이 생길지 떠올려 본다."
+
+  - id: ch04-s05
+    concept: array-filter
+    kind: edit
+    goal: "아직 안 끝난 할 일이 몇 개인지 센다"
+    teach: |
+      `할 일 3개` 만으로는 부족하다. 정작 궁금한 것은 **남은 것이 몇 개인가** 다.
+
+      `filter` 는 조건에 맞는 항목만 골라 **새 배열** 을 만든다. `map` 과 마찬가지로 원본은 그대로다.
+
+        const remaining = tasks.filter((task) => task.done === false)
+
+      `filter` 에 넘긴 함수는 항목마다 참·거짓을 돌려주고, 참인 것만 남는다.
+      개수는 `.length` 로 센다 — 3장에서 쓴 그대로다.
+
+      `list` 가지를 고친다.
+
+        } else if (command === 'list') {
+          const remaining = tasks.filter((task) => task.done === false)
+          console.log(`할 일 ${tasks.length}개 (남은 것 ${remaining.length}개)`)
+          printAll(tasks)
+        }
+
+      `===` 는 '같은가'를 묻는 비교다(2장 보스에서 썼다). `task.done === false` 는
+      '아직 안 끝났는가'로 읽는다.
+    fade:
+      copy: |
+        const remaining = tasks.filter((task) => task.done === false)
+        console.log(`할 일 ${tasks.length}개 (남은 것 ${remaining.length}개)`)
+      fill: |
+        const remaining = tasks.____((task) => task.done ____ false)
+        console.log(`할 일 ${tasks.length}개 (남은 것 ${remaining.____}개)`)
+      recall: "list 가 전체 개수와 함께 아직 안 끝난 할 일의 개수도 알려 주게 한다"
+    hints:
+      - "전체를 세는 것과 조건에 맞는 것만 세는 것은 다르다. 골라낸 뒤에 세면 된다."
+      - "list 가지에서 아직 안 끝난 것만 골라 새 배열을 만들고, 그 길이를 함께 찍는다."
+      - "tasks.filter((task) => task.done === false) 로 고른 뒤 그 .length 를 '남은 것 N개' 로 찍는다."
+    verify:
+      - type: fs
+        label: "filter 로 골라낸다"
+        path: "app.mjs"
+        matches: ['\.filter\(']
+      - type: cmd
+        label: "남은 개수를 정확히 센다"
+        run: ["node", "app.mjs", "list"]
+        expect_output: '할 일 2개 \(남은 것 1개\)'
+      - type: cmd
+        label: "추가하면 전체도 남은 것도 함께 늘어난다"
+        run: ["node", "app.mjs", "add", "장보기"]
+        expect_output: '3\. \[ \] 장보기'
+    review_card:
+      front: "조건에 맞는 항목만 골라 새 배열을 만드는 메서드는?"
+      back: "filter"
+      answer_pattern: "filter|필터"
+
+  - id: ch04-s06
+    concept: array-find
+    kind: edit
+    goal: "제목으로 할 일을 찾아 완료 처리한다"
+    teach: |
+      드디어 3장에서 남겨 둔 구멍을 메운다. `done` 이 무조건 첫 번째만 완료 처리하던 문제다.
+
+      `find` 는 조건에 맞는 **첫 번째 항목 하나** 를 돌려준다. `filter` 가 배열을 주는 것과 다르다.
+      맞는 것이 없으면 `undefined` 를 돌려준다.
+
+        const target = tasks.find((task) => task.title === title)
+
+      찾은 것이 배열 안의 그 객체 자체이므로, 거기에 대입하면 목록이 바뀐다 — 3장에서 익힌 그대로다.
+
+        } else if (command === 'done' && title) {
+          const target = tasks.find((task) => task.title === title)
+          if (target) {
+            target.done = true
+            console.log(`완료: ${render(target)}`)
+          } else {
+            console.log(`그런 할 일이 없다: ${title}`)
+            process.exit(1)
+          }
+        }
+
+      `if (target)` 은 '찾았으면'으로 읽는다. 못 찾으면 `undefined` 이고 그것은 거짓으로 다뤄진다.
+      없는 제목을 준 것은 사용자의 실수이므로 **종료 코드 1** 로 알린다(2장에서 익힌 것이다).
+
+      사용법 문구도 고친다 — `done` 이 다시 제목을 받는다.
+
+        const USAGE = '사용법: node app.mjs <add 제목 | done 제목 | list>'
+    predict:
+      question: "`find` 로 찾았는데 목록에 그런 제목이 없으면 무엇이 돌아올까?"
+      answer_pattern: "undefined|언디파인|없|아무"
+      reveal: |
+        `undefined` 가 돌아온다. 오류가 나지 않는다는 점이 중요하다 — 못 찾았다는 사실을
+        **부르는 쪽이 직접 확인해야** 한다. 확인하지 않고 `target.done = true` 를 하면
+        그제야 "undefined의 속성을 설정할 수 없다"며 터진다. 6장에서 이런 실패를 제대로 다룬다.
+    fade:
+      copy: |
+        const target = tasks.find((task) => task.title === title)
+        if (target) {
+          target.done = true
+          console.log(`완료: ${render(target)}`)
+        } else {
+          console.log(`그런 할 일이 없다: ${title}`)
+          process.exit(1)
+        }
+      fill: |
+        const target = tasks.____((task) => task.title ____ title)
+        if (____) {
+          target.done = true
+          console.log(`완료: ${render(target)}`)
+        } else {
+          console.log(`그런 할 일이 없다: ${title}`)
+          process.exit(1)
+        }
+      recall: "done 이 제목으로 할 일을 찾아 완료 처리하고, 없는 제목이면 알리고 실패로 끝내게 한다"
+    hints:
+      - "무조건 첫 번째를 고르고 있다면, 아직 목록에서 '찾는' 일을 하지 않은 것이다."
+      - "done 가지에서 제목이 일치하는 항목 하나를 찾고, 찾았을 때와 못 찾았을 때를 갈라 처리한다."
+      - "tasks.find((task) => task.title === title) 로 찾고, if (target) 안에서 target.done = true 를, else 에서 사용법 대신 '그런 할 일이 없다' 를 찍고 process.exit(1) 한다."
+    verify:
+      - type: fs
+        label: "find 로 하나를 찾는다"
+        path: "app.mjs"
+        matches: ['\.find\(']
+      - type: cmd
+        label: "제목으로 지목한 할 일이 완료된다"
+        run: ["node", "app.mjs", "done", "빨래 개기"]
+        expect_output: '완료: \[x\] 빨래 개기'
+      - type: cmd
+        label: "다른 제목을 주면 그것이 완료된다"
+        run: ["node", "app.mjs", "done", "우유 사기"]
+        expect_output: '완료: \[x\] 우유 사기'
+        reject_output: '빨래 개기'
+      - type: cmd
+        label: "없는 제목은 알리고 실패로 끝낸다"
+        run: ["node", "app.mjs", "done", "세차하기"]
+        expect_exit: 1
+        expect_output: '그런 할 일이 없다'
+    review_card:
+      front: "find 와 filter 의 차이는?"
+      back: "find 는 조건에 맞는 첫 항목 하나(없으면 undefined), filter 는 맞는 것 전부를 담은 배열"
+      answer_pattern: "하나|첫|배열|undefined"
+
+  - id: ch04-s07
+    concept: task-query
+    kind: edit
+    boss: true
+    goal: "세 명령 모두가 바뀐 목록을 눈으로 확인시키는 CLI를 완성한다"
+    teach: |
+      이 장에서 익힌 `for-of`·`map`·`filter`·`find` 를 모아 마무리한다. 힌트는 없다.
+
+      지금 `done` 은 완료했다고 말만 하고 목록을 보여 주지 않는다. **바뀐 결과를 눈으로 확인시키는 것**
+      까지가 이 CLI의 약속이다. 세 명령 모두 마지막에 목록 전체를 찍게 한다.
+
+        node app.mjs list
+          → 할 일 2개 (남은 것 1개)
+            1. [ ] 우유 사기
+            2. [x] 빨래 개기
+
+        node app.mjs add "장보기"
+          → 추가: [ ] 장보기
+            1. [ ] 우유 사기
+            2. [x] 빨래 개기
+            3. [ ] 장보기
+
+        node app.mjs done "빨래 개기"
+          → 완료: [x] 빨래 개기
+            1. [ ] 우유 사기
+            2. [x] 빨래 개기
+
+        node app.mjs done "세차하기"   → 그런 할 일이 없다: 세차하기 / 종료 코드 1
+        node app.mjs                   → 사용법 / 종료 코드 1
+
+      요구사항은 넷이다.
+
+        1. list 는 전체 개수와 남은 개수를 알리고 번호 붙은 목록을 찍는다
+        2. add 는 목록에 넣고, 추가한 줄과 **번호 붙은 전체 목록** 을 찍는다
+        3. done 은 제목으로 찾아 완료 처리하고, 완료한 줄과 **번호 붙은 전체 목록** 을 찍는다.
+           못 찾으면 알리고 종료 코드 1로 끝낸다
+        4. 그 밖의 경우에는 사용법을 찍고 종료 코드 1로 끝낸다
+
+      `formatTask` 는 이 장 내내 한 번도 고치지 않았다. 이번에도 그렇다.
+    verify:
+      - type: cmd
+        label: "done 은 바뀐 목록을 눈으로 확인시킨다"
+        run: ["node", "app.mjs", "done", "빨래 개기"]
+        expect_output: '2\. \[x\] 빨래 개기'
+      - type: cmd
+        label: "done 은 지목한 것만 완료한다"
+        run: ["node", "app.mjs", "done", "빨래 개기"]
+        expect_output: '1\. \[ \] 우유 사기'
+      - type: cmd
+        label: "다른 제목을 지목하면 그쪽이 완료된다"
+        run: ["node", "app.mjs", "done", "우유 사기"]
+        expect_output: '1\. \[x\] 우유 사기'
+      - type: cmd
+        label: "add 는 넣은 뒤의 전체 목록을 보여 준다"
+        run: ["node", "app.mjs", "add", "장보기"]
+        expect_output: '3\. \[ \] 장보기'
+      - type: cmd
+        label: "다른 제목을 줘도 그것이 목록에 들어간다"
+        run: ["node", "app.mjs", "add", "설거지"]
+        expect_output: '3\. \[ \] 설거지'
+        reject_output: '장보기'
+      - type: cmd
+        label: "list 는 남은 개수를 함께 알린다"
+        run: ["node", "app.mjs", "list"]
+        expect_output: '할 일 2개 \(남은 것 1개\)'
+      - type: cmd
+        label: "없는 제목은 실패로 끝낸다"
+        run: ["node", "app.mjs", "done", "세차하기"]
+        expect_exit: 1
+        expect_output: '그런 할 일이 없다'
+      - type: cmd
+        label: "명령이 없으면 사용법을 알리고 실패로 끝낸다"
+        run: ["node", "app.mjs"]
+        expect_exit: 1
+        expect_output: '사용법'
+    review_card:
+      front: "배열을 다루는 네 가지 — 훑기·바꾸기·고르기·찾기에 각각 쓰는 것은?"
+      back: "for-of · map · filter · find"
+      answer_pattern: "map|filter|find|for"
+    explain:
+      question: "세 명령 모두 마지막에 목록 전체를 찍게 했다. 명령마다 결과 한 줄만 찍는 것과 무엇이 다른가?"
+      model_answer: |
+        화면이 프로그램 상태의 증거가 된다. 결과 한 줄만 찍으면 그 줄이 맞는지만 알 수 있고,
+        정작 목록이 어떻게 됐는지는 다음에 list 를 쳐야 안다. 목록을 함께 찍으면 방금 한 일이
+        전체에 어떻게 반영됐는지가 한눈에 보인다. 검사도 같은 이유로 강해진다 —
+        말이 아니라 목록을 보고 판정하므로, 출력만 흉내 낸 코드가 통과하지 못한다.
+      keywords:
+        - term: "상태"
+          nudge: "한 줄만 찍었을 때 확인할 수 없는 것이 무엇인지 짚어 본다."
+        - term: "확인"
+          nudge: "다음 명령을 치지 않고도 알 수 있게 된 것이 무엇인지 생각해 본다."

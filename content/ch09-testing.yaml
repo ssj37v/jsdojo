@@ -1,0 +1,849 @@
+id: ch09
+title: "9장 · 스스로 검증한다"
+goal: "손으로 확인하던 일을 테스트로 옮겨, 고칠 때마다 기계가 대신 확인하게 한다"
+intro: |
+  8장 마지막에서 `app.mjs` 를 통째로 뜯어고쳤다. 맞게 됐는지는 어떻게 확인했나 —
+  명령을 하나씩 쳐 보고 화면을 눈으로 대조했다.
+
+  그 방법에는 문제가 셋 있다. 느리고, 빠뜨리기 쉽고, **다음에 또 고치면 처음부터 다시 해야 한다.**
+  게다가 확인한 사람만 알고 있어서 아무 기록도 남지 않는다.
+
+  확인 절차를 코드로 적어 두면 셋이 한 번에 해결된다. 그것이 테스트다.
+  Node에는 이미 들어 있다 — 설치할 것이 없다.
+
+  이 장의 판정은 조금 다르다. **테스트를 썼는지가 아니라, 그 테스트가 무언가를 지키는지** 를 본다.
+  `assert.ok(true)` 한 줄도 초록불은 낸다. 그래서 도장은 구현을 일부러 망가뜨려 보고
+  네 테스트가 그것을 잡아내는지 확인한다. 잡지 못하면 통과가 아니다.
+
+steps:
+  - id: ch09-s01
+    concept: node-test
+    kind: edit
+    goal: "첫 테스트를 쓰고 돌린다"
+    teach: |
+      `workspace/test/format.test.mjs` 를 만든다. 폴더 `test` 도 함께 만든다.
+
+        import test from 'node:test'
+        import assert from 'node:assert/strict'
+        import formatTask from '../lib/format.mjs'
+
+        test('아직 안 끝난 할 일은 [ ] 로 쓴다', () => {
+          assert.equal(formatTask('우유 사기'), '[ ] 우유 사기')
+        })
+
+        test('끝낸 할 일은 [x] 로 쓴다', () => {
+          assert.equal(formatTask('빨래 개기', true), '[x] 빨래 개기')
+        })
+
+      `test(설명, 함수)` 가 전부다. 함수 안에서 `assert` 가 하나라도 어긋나면 그 테스트가 실패한다.
+      **설명은 사람이 읽는 명세다.** '무엇이 참이어야 하는가'를 문장으로 적는다.
+      `formatTask 테스트` 같은 제목은 아무것도 알려 주지 않는다.
+
+      돌리는 법은 한 줄이다. workspace 폴더에서:
+
+        node --test
+
+      Node가 `test/` 아래와 `*.test.mjs` 이름의 파일을 알아서 찾아 돌린다.
+      설정 파일도, 설치도 없다.
+
+      결과를 눈여겨본다. 통과하면 종료 코드 0, 하나라도 실패하면 0이 아니다.
+      6장에서 배운 그 종료 코드다 — 그래서 나중에 자동화가 이 결과를 읽고 판단할 수 있다.
+
+      **확인하고 넘어간다.** `lib/format.mjs` 의 `[x]` 와 `[ ]` 를 일부러 바꿔 놓고 `node --test` 를
+      다시 돌려 보라. 빨간불이 떠야 한다. 뜨지 않는다면 그 테스트는 아무것도 지키지 않는 것이다.
+      되돌려 놓는 것을 잊지 않는다.
+    predict:
+      question: "`assert.ok(true)` 한 줄만 있는 테스트도 `node --test` 는 통과시킬까?"
+      answer_pattern: "통과|예|응|그렇|한다|초록"
+      reveal: |
+        통과한다. 테스트 러너는 '무언가를 확인했는지'가 아니라 '어긋난 것이 있는지'만 본다.
+        그래서 초록불은 코드가 맞다는 증거가 아니라 **내가 적어 둔 확인이 어긋나지 않았다** 는 증거일 뿐이다.
+        확인을 적지 않았으면 아무것도 보장하지 않는다.
+        이 장의 판정이 구현을 일부러 망가뜨려 보는 이유가 그것이다.
+    fade:
+      copy: |
+        import test from 'node:test'
+        import assert from 'node:assert/strict'
+        import formatTask from '../lib/format.mjs'
+
+        test('아직 안 끝난 할 일은 [ ] 로 쓴다', () => {
+          assert.equal(formatTask('우유 사기'), '[ ] 우유 사기')
+        })
+      fill: |
+        import ____ from 'node:test'
+        import assert from 'node:assert/strict'
+        import formatTask from '../lib/format.mjs'
+
+        ____('아직 안 끝난 할 일은 [ ] 로 쓴다', () => {
+          assert.____(formatTask('우유 사기'), '[ ] 우유 사기')
+        })
+      recall: "test/format.test.mjs 를 만들어 완료·미완료 두 경우의 표시 모양을 각각 확인하는 테스트를 쓴다"
+    hints:
+      - "확인 절차를 코드로 적어 두면 다음에 고칠 때 다시 손으로 확인하지 않아도 된다."
+      - "test 폴더에 *.test.mjs 파일을 만들고, node:test 의 test 와 node:assert/strict 의 assert 를 가져다 쓴다."
+      - "test('설명', () => { assert.equal(formatTask('우유 사기'), '[ ] 우유 사기') }) 를 적고 workspace 에서 node --test 를 돌린다."
+    verify:
+      - type: fs
+        label: "test/format.test.mjs 가 Node의 테스트 도구를 쓴다"
+        path: "test/format.test.mjs"
+        matches: ['node:test', 'node:assert']
+      - type: cmd
+        label: "node --test 가 통과한다"
+        run: ["node", "--test"]
+        expect_output: 'fail 0'
+      - type: cmd
+        label: "표시 모양을 망가뜨리면 테스트가 잡아낸다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { cp, mkdtemp, rm, writeFile } from 'node:fs/promises'
+            import os from 'node:os'
+            import path from 'node:path'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+
+            // 완료 표시를 뒤집은 구현. 학습자 파일은 건드리지 않고 사본에서만 바꾼다.
+            const BROKEN = `export default function formatTask(title, done = false) {
+              return done ? \`[ ] \${title}\` : \`[x] \${title}\`
+            }
+            `
+
+            const sandbox = await mkdtemp(path.join(os.tmpdir(), 'dojo-mutate-'))
+            let survived
+            try {
+              await cp('.', sandbox, { recursive: true })
+              await writeFile(path.join(sandbox, 'lib', 'format.mjs'), BROKEN)
+              await run(process.execPath, ['--test'], { cwd: sandbox })
+              survived = true
+            } catch {
+              survived = false
+            } finally {
+              await rm(sandbox, { recursive: true, force: true })
+            }
+
+            assert.equal(
+              survived,
+              false,
+              '완료 표시를 뒤집었는데도 테스트가 통과했다 — 그 테스트는 아무것도 지키지 않는다',
+            )
+    review_card:
+      front: "테스트가 초록불이라는 것은 무엇을 뜻하는가?"
+      back: "내가 적어 둔 확인이 어긋나지 않았다는 것뿐. 적지 않은 것은 아무것도 보장하지 않는다"
+      answer_pattern: "적어|확인|보장.*않|어긋"
+
+  - id: ch09-s02
+    concept: assert-strict
+    kind: edit
+    goal: "값·구조·던지는 것까지 확인하는 테스트를 쓴다"
+    teach: |
+      `assert.equal` 하나로는 부족하다. 자주 쓰는 것 셋을 익힌다.
+
+        assert.equal(실제, 기대)        값 하나를 견준다
+        assert.deepEqual(실제, 기대)    배열·객체를 속까지 견준다
+        assert.throws(함수, 조건)       그 함수가 던지는지 확인한다
+
+      `node:assert/strict` 로 가져오는 것이 중요하다. 느슨한 쪽(`node:assert`)은 `1` 과 `'1'` 을
+      같다고 본다. 그런 관대함은 테스트에서 독이다 — 틀린 것을 맞다고 해 준다.
+
+      `assert.throws` 의 두 번째 인자로 조건을 준다. 6장에서 이름을 붙여 둔 덕에 종류까지 못 박을 수 있다.
+
+        assert.throws(() => addTask(tasks, ''), { name: 'InvalidInputError' })
+
+      함수를 **감싸서** 넘기는 것을 눈여겨본다. `assert.throws(addTask(tasks, ''))` 라고 쓰면
+      그 자리에서 던져져 버려 `assert.throws` 는 시작도 못 한다.
+
+      `workspace/test/tasks.test.mjs` 를 만들어 `lib/tasks.mjs` 를 확인한다. 적어도 이 다섯을 담는다.
+
+        1. addTask 는 목록 끝에 새 할 일을 넣고, 넣은 그것을 돌려준다
+        2. addTask 는 앞뒤 공백을 떼고 담는다
+        3. 빈 제목은 InvalidInputError 로 거부하고, 목록에 아무것도 남기지 않는다
+        4. completeTask 는 지목한 것만 완료한다
+        5. countPending 은 아직 안 끝난 것만 센다
+
+      3번의 뒷부분을 빠뜨리지 않는다. '던졌다'만 확인하고 '목록이 깨끗한지'를 안 보면,
+      넣은 뒤에 던지는 구현을 놓친다. **던지는 것과 상태가 그대로인 것은 다른 사실이다.**
+    fade:
+      copy: |
+        test('빈 제목은 거부하고 목록에 남기지 않는다', () => {
+          const tasks = []
+          assert.throws(() => addTask(tasks, '   '), { name: 'InvalidInputError' })
+          assert.equal(tasks.length, 0)
+        })
+      fill: |
+        test('빈 제목은 거부하고 목록에 남기지 않는다', () => {
+          const tasks = []
+          assert.____(____ addTask(tasks, '   '), { name: 'InvalidInputError' })
+          assert.equal(tasks.length, 0)
+        })
+      recall: "test/tasks.test.mjs 를 만들어 넣기·공백 다듬기·거부·완료·세기를 각각 확인한다"
+    hints:
+      - "값 하나만 견주는 것으로는 배열이 어떻게 됐는지도, 던졌는지도 확인할 수 없다."
+      - "deepEqual 로 목록 전체를 견주고, throws 로 거부를 확인한다. 거부한 뒤 목록이 깨끗한지도 함께 본다."
+      - "assert.throws(() => addTask(tasks, ''), { name: 'InvalidInputError' }) 처럼 함수를 감싸 넘기고, 그 뒤에 assert.equal(tasks.length, 0) 을 둔다."
+    verify:
+      - type: fs
+        label: "test/tasks.test.mjs 가 던지는 것까지 확인한다"
+        path: "test/tasks.test.mjs"
+        matches: ['assert\.throws', 'InvalidInputError']
+      - type: cmd
+        label: "node --test 가 통과한다"
+        run: ["node", "--test"]
+        expect_output: 'fail 0'
+      - type: cmd
+        label: "입력 검사를 걷어 내면 테스트가 잡아낸다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+            import os from 'node:os'
+            import path from 'node:path'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const original = await readFile('lib/tasks.mjs', 'utf8')
+
+            // 제목 검사를 통과만 시키도록 바꾼다. 빈 제목이 그대로 들어가게 된다.
+            const broken = original.replace(
+              /function requireTitle\(title\) \{[\s\S]*?\n\}/,
+              'function requireTitle(title) {\n  return String(title)\n}',
+            )
+            assert.notEqual(broken, original, '망가뜨릴 자리를 찾지 못했다 — requireTitle 이 있어야 한다')
+
+            const sandbox = await mkdtemp(path.join(os.tmpdir(), 'dojo-mutate-'))
+            let survived
+            try {
+              await cp('.', sandbox, { recursive: true })
+              await writeFile(path.join(sandbox, 'lib', 'tasks.mjs'), broken)
+              await run(process.execPath, ['--test'], { cwd: sandbox })
+              survived = true
+            } catch {
+              survived = false
+            } finally {
+              await rm(sandbox, { recursive: true, force: true })
+            }
+
+            assert.equal(
+              survived,
+              false,
+              '입력 검사를 없앴는데도 테스트가 통과했다 — 거부를 확인하는 테스트가 없다',
+            )
+      - type: cmd
+        label: "완료 대상을 뒤바꿔도 테스트가 잡아낸다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+            import os from 'node:os'
+            import path from 'node:path'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const original = await readFile('lib/tasks.mjs', 'utf8')
+
+            // 제목으로 찾지 않고 무조건 첫 번째를 완료한다.
+            const broken = original.replace(
+              'const target = tasks.find((task) => task.title === clean)',
+              'const target = tasks[0]',
+            )
+            assert.notEqual(broken, original, '망가뜨릴 자리를 찾지 못했다')
+
+            const sandbox = await mkdtemp(path.join(os.tmpdir(), 'dojo-mutate-'))
+            let survived
+            try {
+              await cp('.', sandbox, { recursive: true })
+              await writeFile(path.join(sandbox, 'lib', 'tasks.mjs'), broken)
+              await run(process.execPath, ['--test'], { cwd: sandbox })
+              survived = true
+            } catch {
+              survived = false
+            } finally {
+              await rm(sandbox, { recursive: true, force: true })
+            }
+
+            assert.equal(
+              survived,
+              false,
+              '엉뚱한 것을 완료하는데도 테스트가 통과했다 — 지목한 것만 바뀌는지 확인하지 않았다',
+            )
+    review_card:
+      front: "node:assert 대신 node:assert/strict 를 쓰는 이유는?"
+      back: "느슨한 쪽은 1과 '1'을 같다고 본다. 테스트에서 관대함은 틀린 것을 맞다고 해 준다"
+      answer_pattern: "느슨|엄격|같다고|타입|strict"
+
+  - id: ch09-s03
+    concept: test-isolation
+    kind: edit
+    goal: "파일을 다루는 테스트가 진짜 데이터를 건드리지 않게 한다"
+    teach: |
+      `lib/store.mjs` 를 테스트하려면 파일을 써야 한다. 그런데 아무 생각 없이 쓰면
+      **테스트를 한 번 돌릴 때마다 내 진짜 할 일 목록이 날아간다.**
+
+      7장에서 이럴 줄 알고 자리를 만들어 두었다.
+
+        export async function saveTasks(tasks, file = FILE)
+        export async function readTasks(file = FILE)
+
+      파일 이름을 받는 그 인자다. 테스트는 다른 이름을 넘긴다.
+
+        const FILE = 'tasks.test.json'
+
+      그리고 **쓴 것은 치운다.** `node:test` 는 테스트가 끝난 뒤 실행할 일을 등록할 수 있다.
+
+        test('저장한 것을 그대로 읽어 온다', async (t) => {
+          t.after(() => rm(FILE, { force: true }))
+
+          const tasks = [{ title: '우유 사기', done: false }]
+          await saveTasks(tasks, FILE)
+          assert.deepEqual(await readTasks(FILE), tasks)
+        })
+
+      `t` 는 테스트 함수가 받는 도구다. `t.after(...)` 에 넘긴 일은 그 테스트가 끝나면
+      **성공하든 실패하든** 불린다. 그래서 중간에 실패해도 뒷정리는 된다.
+
+      비동기 테스트는 함수를 `async` 로 두고 안에서 `await` 한다.
+      `node:test` 는 돌려받은 Promise가 끝날 때까지 기다려 준다.
+
+      `workspace/test/store.test.mjs` 를 만들어 셋을 확인한다.
+
+        1. 파일이 없으면 빈 목록으로 시작한다
+        2. 저장한 것을 그대로 읽어 온다
+        3. 망가진 파일은 InvalidInputError 로 알린다
+
+      **이 장의 판정은 네 진짜 `tasks.json` 이 무사한지도 본다.**
+      테스트가 남의 데이터를 건드리면 아무리 초록불이어도 통과가 아니다.
+    predict:
+      question: "테스트가 기본 파일 이름(`tasks.json`)을 그대로 쓰면 무슨 일이 생길까?"
+      answer_pattern: "날아|지워|덮어|사라|잃|망가"
+      reveal: |
+        테스트를 돌릴 때마다 진짜 할 일 목록이 덮어써진다. 더 고약한 것은 **테스트는 초록불이라는 점**이다.
+        확인하려고 돌린 것이 데이터를 지우는데 아무 경고도 없다.
+        테스트는 자기가 만든 것만 건드리고, 끝나면 치우고 나가야 한다.
+    fade:
+      copy: |
+        test('저장한 것을 그대로 읽어 온다', async (t) => {
+          t.after(() => rm(FILE, { force: true }))
+
+          const tasks = [{ title: '우유 사기', done: false }]
+          await saveTasks(tasks, FILE)
+          assert.deepEqual(await readTasks(FILE), tasks)
+        })
+      fill: |
+        test('저장한 것을 그대로 읽어 온다', ____ (t) => {
+          t.____(() => rm(FILE, { force: true }))
+
+          const tasks = [{ title: '우유 사기', done: false }]
+          ____ saveTasks(tasks, FILE)
+          assert.deepEqual(____ readTasks(FILE), tasks)
+        })
+      recall: "test/store.test.mjs 를 만들어 저장·읽기·망가진 파일을 확인하되, 진짜 목록 파일은 건드리지 않고 뒷정리까지 한다"
+    hints:
+      - "테스트가 진짜 데이터를 건드리면, 확인하려고 돌린 것이 데이터를 지우게 된다."
+      - "store 함수들이 받는 파일 이름 인자에 테스트 전용 이름을 넘기고, 테스트가 끝나면 그 파일을 지운다."
+      - "const FILE = 'tasks.test.json' 을 두고 saveTasks(tasks, FILE) 처럼 넘긴다. 각 테스트에서 t.after(() => rm(FILE, { force: true })) 로 치운다."
+    verify:
+      - type: fs
+        label: "테스트가 전용 파일 이름을 쓴다"
+        path: "test/store.test.mjs"
+        matches: ['tasks\.test\.json']
+        not_matches: ["readTasks\\(\\s*\\)", "saveTasks\\(\\s*\\w+\\s*\\)\\s*$"]
+      - type: cmd
+        label: "node --test 가 통과한다"
+        run: ["node", "--test"]
+        expect_output: 'fail 0'
+      - type: cmd
+        label: "테스트를 돌려도 진짜 목록 파일이 그대로다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+            import os from 'node:os'
+            import path from 'node:path'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const sandbox = await mkdtemp(path.join(os.tmpdir(), 'dojo-mutate-'))
+
+            try {
+              await cp('.', sandbox, { recursive: true })
+
+              // 사본 쪽에 알아볼 수 있는 진짜 목록을 놓아 둔다.
+              const real = JSON.stringify([{ title: '건드리면 안 되는 할 일', done: false }])
+              const realFile = path.join(sandbox, 'tasks.json')
+              await writeFile(realFile, real)
+
+              await run(process.execPath, ['--test'], { cwd: sandbox })
+
+              assert.equal(
+                await readFile(realFile, 'utf8'),
+                real,
+                '테스트가 진짜 목록 파일을 덮어썼다 — 전용 파일 이름을 넘겨야 한다',
+              )
+            } finally {
+              await rm(sandbox, { recursive: true, force: true })
+            }
+      - type: cmd
+        label: "테스트가 쓴 파일을 치우고 나간다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { cp, mkdtemp, readdir, rm } from 'node:fs/promises'
+            import os from 'node:os'
+            import path from 'node:path'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const sandbox = await mkdtemp(path.join(os.tmpdir(), 'dojo-mutate-'))
+
+            try {
+              await cp('.', sandbox, { recursive: true })
+
+              // 앞선 실행이 남긴 것이 그대로 있으면 이번에 새로 생긴 것을 가려 버린다.
+              // 기준선을 먼저 씻는다 — 이 도장에서 실행 중에 생기는 것은 JSON 파일뿐이다.
+              for (const name of await readdir(sandbox)) {
+                if (name.endsWith('.json')) await rm(path.join(sandbox, name), { force: true })
+              }
+
+              const before = await readdir(sandbox)
+              await run(process.execPath, ['--test'], { cwd: sandbox })
+
+              const leftover = (await readdir(sandbox)).filter((name) => before.includes(name) === false)
+
+              assert.deepEqual(
+                leftover,
+                [],
+                `테스트가 파일을 남기고 나갔다: ${leftover.join(', ')} — t.after 로 치운다`,
+              )
+            } finally {
+              await rm(sandbox, { recursive: true, force: true })
+            }
+      - type: cmd
+        label: "없는 파일 처리를 망가뜨리면 테스트가 잡아낸다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+            import os from 'node:os'
+            import path from 'node:path'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const original = await readFile('lib/store.mjs', 'utf8')
+
+            // 파일이 없을 때 빈 목록으로 시작하던 것을 없앤다.
+            const broken = original.replace(/return \[\]/, 'return [{ title: 유령, done: false }]')
+            assert.notEqual(broken, original, '망가뜨릴 자리를 찾지 못했다')
+
+            const sandbox = await mkdtemp(path.join(os.tmpdir(), 'dojo-mutate-'))
+            let survived
+            try {
+              await cp('.', sandbox, { recursive: true })
+              await writeFile(path.join(sandbox, 'lib', 'store.mjs'), broken)
+              await run(process.execPath, ['--test'], { cwd: sandbox })
+              survived = true
+            } catch {
+              survived = false
+            } finally {
+              await rm(sandbox, { recursive: true, force: true })
+            }
+
+            assert.equal(
+              survived,
+              false,
+              '없는 파일 처리를 망가뜨렸는데도 테스트가 통과했다',
+            )
+    review_card:
+      front: "테스트가 끝난 뒤 뒷정리를 등록하는 node:test 의 기능은?"
+      back: "t.after(...) — 테스트가 성공하든 실패하든 불린다"
+      answer_pattern: "after|뒷정리|정리"
+
+  - id: ch09-s04
+    concept: test-first
+    kind: edit
+    goal: "테스트를 먼저 쓰고, 그것을 초록불로 만든다"
+    teach: |
+      지금까지는 이미 있는 동작을 테스트로 옮겼다. 이번에는 반대로 한다 —
+      **아직 없는 규칙을 테스트로 먼저 적고, 그 다음에 만든다.**
+
+      규칙 하나가 빠져 있다. 지금은 같은 제목을 몇 번이고 넣을 수 있다.
+
+        addTask(tasks, '우유 사기')
+        addTask(tasks, '우유 사기')   → 그대로 하나 더 들어간다
+
+      목록에 '우유 사기'가 둘이 되면 `completeTask` 는 첫 번째만 완료한다.
+      사용자는 완료했다고 들었는데 목록에는 아직 남아 있다. 조용한 결함이다.
+
+      순서를 지킨다.
+
+      **먼저 `test/tasks.test.mjs` 에 테스트를 더한다.**
+
+        test('같은 제목을 두 번 넣을 수 없다', () => {
+          const tasks = []
+          addTask(tasks, '우유 사기')
+          assert.throws(() => addTask(tasks, '우유 사기'), { name: 'InvalidInputError' })
+          assert.equal(tasks.length, 1)
+        })
+
+        test('앞뒤 공백만 다른 제목도 같은 것으로 본다', () => {
+          const tasks = []
+          addTask(tasks, '우유 사기')
+          assert.throws(() => addTask(tasks, '  우유 사기  '), { name: 'InvalidInputError' })
+        })
+
+      `node --test` 를 돌린다. **빨간불이 떠야 한다.** 이것이 이 방식의 핵심이다 —
+      빨간불을 한 번도 못 봤다면 그 테스트가 정말 무언가를 확인하는지 알 수 없다.
+
+      **그 다음에 `lib/tasks.mjs` 를 고친다.**
+
+        export function addTask(tasks, title) {
+          requireList(tasks)
+          const clean = requireTitle(title)
+          if (tasks.find((task) => task.title === clean)) {
+            throw invalidInput(`이미 있는 할 일이다: ${clean}`)
+          }
+          tasks.push({ title: clean, done: false })
+          return tasks[tasks.length - 1]
+        }
+
+      검사가 `requireTitle` **뒤** 에 오는 것을 눈여겨본다. 다듬은 제목으로 견주어야
+      `'우유 사기'` 와 `' 우유 사기 '` 가 같은 것으로 잡힌다.
+
+      다시 `node --test` 를 돌린다. 초록불이면 끝이다.
+      **빨강 → 초록.** 이 두 걸음이 '테스트가 정말 그 규칙을 지킨다'는 증거가 된다.
+    fade:
+      copy: |
+        if (tasks.find((task) => task.title === clean)) {
+          throw invalidInput(`이미 있는 할 일이다: ${clean}`)
+        }
+      fill: |
+        if (tasks.____((task) => task.title === ____)) {
+          throw invalidInput(`이미 있는 할 일이다: ${clean}`)
+        }
+      recall: "중복 제목을 막는 테스트를 먼저 써서 빨간불을 본 뒤, addTask 에 그 규칙을 넣어 초록불로 만든다"
+    hints:
+      - "같은 제목이 둘이면 완료 처리가 첫 번째만 바꾼다. 사용자는 완료했다고 듣지만 목록에는 남는다."
+      - "테스트를 먼저 더해 빨간불을 확인하고, 그 다음 addTask 에서 이미 있는 제목인지 본다."
+      - "다듬은 제목(clean)으로 tasks.find 를 해 보고, 있으면 invalidInput 을 던진다. requireTitle 뒤에 둔다."
+    verify:
+      - type: cmd
+        label: "중복 제목을 거부한다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { addTask } from './lib/tasks.mjs'
+            import assert from 'node:assert/strict'
+
+            const tasks = []
+            addTask(tasks, '우유 사기')
+
+            const rejects = (title, what) => {
+              try {
+                addTask(tasks, title)
+              } catch (error) {
+                assert.equal(error.name, 'InvalidInputError', `${what}: 이름 붙은 실패여야 한다`)
+                return
+              }
+              assert.fail(`${what}: 막지 않고 통과시켰다`)
+            }
+
+            rejects('우유 사기', '똑같은 제목')
+            rejects('  우유 사기  ', '앞뒤 공백만 다른 제목')
+
+            assert.equal(tasks.length, 1, '거부했으면 목록에 남으면 안 된다')
+
+            addTask(tasks, '빨래 개기')
+            assert.equal(tasks.length, 2, '다른 제목까지 막으면 안 된다')
+      - type: cmd
+        label: "node --test 가 통과한다"
+        run: ["node", "--test"]
+        expect_output: 'fail 0'
+      - type: cmd
+        label: "중복 검사를 걷어 내면 테스트가 잡아낸다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+            import os from 'node:os'
+            import path from 'node:path'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const original = await readFile('lib/tasks.mjs', 'utf8')
+
+            // 중복 검사를 없앤다. 이 규칙을 확인하는 테스트가 없으면 그대로 통과해 버린다.
+            const broken = original.replace(
+              /if \(tasks\.find\([\s\S]*?\)\) \{[\s\S]*?\n  \}\n/,
+              '',
+            )
+            assert.notEqual(broken, original, '망가뜨릴 자리를 찾지 못했다 — 중복 검사가 있어야 한다')
+
+            const sandbox = await mkdtemp(path.join(os.tmpdir(), 'dojo-mutate-'))
+            let survived
+            try {
+              await cp('.', sandbox, { recursive: true })
+              await writeFile(path.join(sandbox, 'lib', 'tasks.mjs'), broken)
+              await run(process.execPath, ['--test'], { cwd: sandbox })
+              survived = true
+            } catch {
+              survived = false
+            } finally {
+              await rm(sandbox, { recursive: true, force: true })
+            }
+
+            assert.equal(
+              survived,
+              false,
+              '중복 검사를 없앴는데도 테스트가 통과했다 — 새 규칙을 확인하는 테스트가 없다',
+            )
+    review_card:
+      front: "테스트를 먼저 쓸 때 '빨간불을 한 번 봐야 한다'고 하는 이유는?"
+      back: "빨간불을 못 봤으면 그 테스트가 정말 무언가를 확인하는지 알 수 없다"
+      answer_pattern: "확인|지키|무언가|의미"
+    explain:
+      question: "같은 제목이 둘 있는 것이 왜 '조용한 결함'인가?"
+      model_answer: |
+        아무 오류도 나지 않기 때문이다. 넣을 때도 성공하고, 완료할 때도 "완료했다"고 나온다.
+        그런데 목록에는 같은 것이 아직 남아 있다. 사용자는 자기가 뭘 잘못 봤나 의심하게 되고,
+        프로그램은 아무 문제도 보고하지 않는다. 터지는 버그는 금방 고쳐지지만
+        조용히 틀린 답을 내는 버그는 오래 남는다. 그래서 규칙을 테스트로 못 박아 둔다.
+      keywords:
+        - term: "오류"
+          nudge: "이 상황에서 프로그램이 무엇을 알려 주는지 짚어 본다."
+        - term: "남"
+          nudge: "완료했다고 들은 뒤 목록이 어떤 상태인지 떠올려 본다."
+
+  - id: ch09-s05
+    concept: test-suite
+    kind: edit
+    boss: true
+    goal: "구현을 어디를 망가뜨려도 잡아내는 테스트 묶음을 갖춘다"
+    teach: |
+      마지막이다. 힌트는 없다.
+
+      아직 `lib/task-store.mjs` 를 확인하는 테스트가 없다. 8장에서 공들여 감춘 그 틀이다.
+      `workspace/test/task-store.test.mjs` 를 만들어 채운다.
+
+      담아야 할 것은 넷이다. 전부 8장에서 손으로 확인했던 것들이다.
+
+        1. 찍어 낸 것마다 자기 목록을 갖는다 — 두 개를 만들어 한쪽에만 넣어 본다
+        2. all() 은 복사본을 돌려준다 — 돌려받은 것을 건드려도 안쪽이 그대로여야 한다
+        3. size 와 pending 은 읽을 때마다 계산된다 — 추가·완료 뒤 다시 읽어 본다
+        4. 감춘 목록은 밖에서 보이지 않는다 — store.tasks 가 undefined 여야 한다
+
+      **이 스텝의 판정은 네 곳을 각각 망가뜨려 보고 네 테스트가 전부 잡아내는지 본다.**
+      하나라도 살아남으면 통과가 아니다. 어디가 뚫렸는지도 알려 준다.
+
+      한 가지만 일러 둔다. 2번을 확인할 때 `store.all()` 을 두 번 부르면 매번 새 복사본이 온다.
+      한 번 받아 둔 것을 건드린 뒤, **다시 불러서** 안쪽이 그대로인지 보아야 한다.
+
+      다 되면 `node --test` 로 전체를 한 번에 돌린다.
+      이제 `app.mjs` 를 뜯어고쳐도 눈으로 대조할 필요가 없다. 한 줄이면 된다.
+    verify:
+      - type: fs
+        label: "test/task-store.test.mjs 가 틀을 확인한다"
+        path: "test/task-store.test.mjs"
+        matches: ['TaskStore']
+      - type: cmd
+        label: "테스트 묶음 전체가 통과한다"
+        run: ["node", "--test"]
+        expect_output: 'fail 0'
+      - type: cmd
+        label: "네 곳을 각각 망가뜨려도 모두 잡아낸다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+            import os from 'node:os'
+            import path from 'node:path'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const original = await readFile('lib/task-store.mjs', 'utf8')
+
+            const mutations = [
+              {
+                what: '모두가 목록 하나를 나눠 쓰게 만들기',
+                miss: '찍어 낸 것마다 자기 목록을 갖는지 확인하지 않았다',
+                apply: (source) => source.replace(
+                  'constructor(tasks = []) {',
+                  'constructor(tasks = globalThis.__shared ??= []) {',
+                ),
+              },
+              {
+                what: '내보낼 때 복사하지 않기',
+                miss: 'all() 이 복사본인지 확인하지 않았다',
+                apply: (source) => source.replace('this.#tasks.slice()', 'this.#tasks'),
+              },
+              {
+                what: '개수를 한 번만 세고 굳히기',
+                miss: 'size 가 읽을 때마다 계산되는지 확인하지 않았다',
+                apply: (source) => source.replace(
+                  /get size\(\) \{[\s\S]*?\n  \}/,
+                  'get size() {\n    return 2\n  }',
+                ),
+              },
+              {
+                what: '감춘 목록을 밖으로 드러내기',
+                miss: '목록이 밖에서 보이지 않는지 확인하지 않았다',
+                apply: (source) => source.replace(
+                  'constructor(tasks = []) {',
+                  'constructor(tasks = []) {\n    this.tasks = tasks',
+                ),
+              },
+            ]
+
+            const escaped = []
+            for (const mutation of mutations) {
+              const broken = mutation.apply(original)
+              assert.notEqual(
+                broken,
+                original,
+                `망가뜨릴 자리를 찾지 못했다: ${mutation.what} — 8장 구현이 그대로 있어야 한다`,
+              )
+
+              const sandbox = await mkdtemp(path.join(os.tmpdir(), 'dojo-mutate-'))
+              let survived
+              try {
+                await cp('.', sandbox, { recursive: true })
+                await writeFile(path.join(sandbox, 'lib', 'task-store.mjs'), broken)
+                await run(process.execPath, ['--test'], { cwd: sandbox })
+                survived = true
+              } catch {
+                survived = false
+              } finally {
+                await rm(sandbox, { recursive: true, force: true })
+              }
+
+              if (survived) escaped.push(`${mutation.what} → ${mutation.miss}`)
+            }
+
+            assert.deepEqual(
+              escaped,
+              [],
+              `망가뜨렸는데 통과한 것이 있다:\n  - ${escaped.join('\n  - ')}`,
+            )
+      - type: cmd
+        label: "테스트를 돌려도 진짜 목록 파일이 그대로다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { cp, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+            import os from 'node:os'
+            import path from 'node:path'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const sandbox = await mkdtemp(path.join(os.tmpdir(), 'dojo-mutate-'))
+
+            try {
+              await cp('.', sandbox, { recursive: true })
+
+              // 앞선 실행이 남긴 것을 먼저 씻어 기준선을 깨끗이 한다.
+              for (const name of await readdir(sandbox)) {
+                if (name.endsWith('.json')) await rm(path.join(sandbox, name), { force: true })
+              }
+
+              const real = JSON.stringify([{ title: '건드리면 안 되는 할 일', done: false }])
+              await writeFile(path.join(sandbox, 'tasks.json'), real)
+              const before = await readdir(sandbox)
+
+              await run(process.execPath, ['--test'], { cwd: sandbox })
+
+              assert.equal(
+                await readFile(path.join(sandbox, 'tasks.json'), 'utf8'),
+                real,
+                '테스트가 진짜 목록 파일을 덮어썼다',
+              )
+
+              const leftover = (await readdir(sandbox)).filter((name) => before.includes(name) === false)
+              assert.deepEqual(leftover, [], `테스트가 파일을 남기고 나갔다: ${leftover.join(', ')}`)
+            } finally {
+              await rm(sandbox, { recursive: true, force: true })
+            }
+      - type: cmd
+        label: "CLI 는 여전히 그대로 동작한다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { readFile, writeFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const keep = await readFile('tasks.json', 'utf8').catch(() => null)
+            const restore = async () => (keep === null
+              ? rm('tasks.json', { force: true })
+              : writeFile('tasks.json', keep))
+
+            try {
+              await rm('tasks.json', { force: true })
+
+              await run(process.execPath, ['app.mjs', 'add', '우유 사기'])
+              await run(process.execPath, ['app.mjs', 'add', '빨래 개기'])
+              const { stdout } = await run(process.execPath, ['app.mjs', 'done', '빨래 개기'])
+
+              assert.match(stdout, /완료: \[x\] 빨래 개기/)
+
+              const saved = JSON.parse(await readFile('tasks.json', 'utf8'))
+              assert.deepEqual(saved.map((task) => task.done), [false, true])
+            } finally {
+              await restore()
+            }
+    review_card:
+      front: "테스트 묶음이 좋은지 어떻게 알 수 있는가?"
+      back: "구현을 망가뜨려 보고 잡아내는지 본다. 초록불만으로는 알 수 없다"
+      answer_pattern: "망가|바꿔|실패|뮤테이션|잡"
+    explain:
+      question: "이제 `app.mjs` 를 다시 뜯어고친다면, 8장 때와 무엇이 달라졌나?"
+      model_answer: |
+        확인이 한 줄로 끝난다. 8장에서는 명령을 하나씩 쳐 보며 화면을 눈으로 대조했고,
+        빠뜨린 것이 있어도 알 방법이 없었다. 이제는 `node --test` 가 내가 적어 둔 모든 규칙을
+        한꺼번에 확인해 준다. 게다가 그 규칙들이 글로 남아 있어서, 나중에 다른 사람이
+        (혹은 몇 달 뒤의 내가) '이 코드가 무엇을 보장하는가'를 읽을 수 있다.
+        테스트는 검사 도구이면서 동시에 명세다.
+      keywords:
+        - term: "한 ?줄|한꺼번|자동"
+          nudge: "확인하는 데 드는 수고가 어떻게 달라졌는지 짚어 본다."
+        - term: "남|기록|명세"
+          nudge: "테스트가 검사 말고 또 무슨 구실을 하는지 생각해 본다."

@@ -1,5 +1,5 @@
 // lifecycle: ops
-// 챕터를 실제 Next.js 프로젝트 위에서 끝까지 돌려 본다.
+// 챕터를 실제 workspace 위에서 끝까지 돌려 본다.
 // "정답을 적용하면 통과하고, 하지 않으면 통과하지 않는다"를 사람 손 없이 확인하는 것이 목적이다.
 //
 //   node scripts/verify-chapter.mjs              # 전 챕터 누적 검증

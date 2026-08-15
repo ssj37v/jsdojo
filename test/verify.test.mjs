@@ -6,7 +6,7 @@ import path from 'node:path';
 import { checkFs } from '../dojo/verify/fs-check.mjs';
 import { checkCmd } from '../dojo/verify/cmd-check.mjs';
 import { checkGit } from '../dojo/verify/git-check.mjs';
-import { planSpawn, runProcess } from '../dojo/verify/run-process.mjs';
+import { cleanEnv, planSpawn, runProcess } from '../dojo/verify/run-process.mjs';
 import { verifyStep } from '../dojo/verify/index.mjs';
 
 function makeWorkspace(files = {}) {
@@ -106,6 +106,31 @@ test('cmd 체크: 실제 종료 코드로 판정한다', async () => {
   assert.match(bad.detail, /종료 코드 3/);
 });
 
+test('cmd 체크: 물려받은 NODE_TEST_CONTEXT 때문에 학습자 테스트가 건너뛰어지지 않는다', async () => {
+  // node --test 는 이 변수가 있으면 "중첩 실행"으로 보고 파일을 하나도 돌리지 않은 채 0으로 끝난다.
+  // 판정이 그것을 통과로 읽으면, 실패하는 테스트를 가진 학습자가 통과해 버린다(거짓 통과).
+  // 이 테스트 자체가 node --test 안에서 도므로 그 환경이 그대로 재현된다.
+  assert.ok(process.env.NODE_TEST_CONTEXT, '이 회귀 테스트는 node --test 안에서 돌아야 의미가 있다');
+
+  const ctx = makeWorkspace();
+  fs.mkdirSync(path.join(ctx.workspaceDir, 'test'), { recursive: true });
+  fs.writeFileSync(
+    path.join(ctx.workspaceDir, 'test', 'failing.test.mjs'),
+    "import test from 'node:test';\nimport assert from 'node:assert/strict';\ntest('일부러 실패', () => { assert.equal(1, 2) });\n",
+    'utf8',
+  );
+
+  const result = await checkCmd({ type: 'cmd', label: 'node --test', run: [process.execPath, '--test'] }, ctx);
+  assert.equal(result.passed, false, '실패하는 테스트가 있는데 통과로 판정됐다 — 테스트가 건너뛰어졌다');
+});
+
+test('cleanEnv: 판정을 왜곡하는 환경 변수를 걷어 낸다', () => {
+  const env = cleanEnv({ PATH: '/usr/bin', NODE_TEST_CONTEXT: 'child-v8', KEEP_ME: 'yes' });
+  assert.equal(env.NODE_TEST_CONTEXT, undefined);
+  assert.equal(env.KEEP_ME, 'yes', '관계없는 변수까지 지우면 학습자 환경이 달라진다');
+  assert.equal(env.NO_COLOR, '1');
+});
+
 test('cmd 체크: 존재하지 않는 명령은 실패로 보고하고 throw하지 않는다', async () => {
   const ctx = makeWorkspace();
   const result = await checkCmd({ type: 'cmd', label: 'x', run: ['definitely-not-a-real-command-xyz'] }, ctx);
@@ -145,6 +170,20 @@ test('git 체크: 저장소·커밋·작업트리 상태를 실제로 읽는다'
   assert.equal((await checkGit({ assert: 'tracked', value: 'b.txt' }, ctx)).passed, false);
   assert.equal((await checkGit({ assert: 'commit_message_matches', value: '^first' }, ctx)).passed, true);
   assert.equal((await checkGit({ assert: 'commit_message_matches', value: '^second' }, ctx)).passed, false);
+});
+
+test('git 체크: 커밋이 하나도 없어도 브랜치 이름을 읽는다', async () => {
+  // git init 직후에는 HEAD 가 아직 어떤 커밋도 가리키지 않는다(unborn).
+  // 예전에는 여기서 git 오류문이 브랜치 이름인 양 학습자 화면에 나왔다.
+  const ctx = await makeRepo({ 'a.txt': 'x' });
+
+  const ok = await checkGit({ assert: 'branch_is', value: 'main' }, ctx);
+  assert.equal(ok.passed, true, '첫 커밋 전에도 브랜치 이름은 알 수 있다');
+
+  const bad = await checkGit({ assert: 'branch_is', value: 'master' }, ctx);
+  assert.equal(bad.passed, false);
+  assert.doesNotMatch(bad.detail, /fatal|ambiguous/, 'git 오류문이 학습자에게 그대로 나가면 안 된다');
+  assert.match(bad.detail, /main/);
 });
 
 test('git 체크: 저장소가 아니면 repo_exists가 실패한다', async () => {

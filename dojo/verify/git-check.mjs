@@ -35,6 +35,22 @@ function samePath(a, b) {
   return normalize(a) === normalize(b);
 }
 
+/**
+ * 지금 있는 브랜치 이름. 커밋이 하나도 없어도 읽는다.
+ *
+ * `git init` 직후에는 HEAD가 아직 어떤 커밋도 가리키지 않아(unborn) `rev-parse` 가 실패한다.
+ * 그 실패 출력을 그대로 쓰면 git 오류문이 브랜치 이름인 양 학습자 화면에 나온다.
+ * 그때는 `symbolic-ref` 로 '앞으로 만들어질 브랜치 이름'을 읽는다.
+ */
+async function currentBranch(git) {
+  const resolved = await git(['rev-parse', '--abbrev-ref', 'HEAD']);
+  const name = resolved.code === 0 ? resolved.output.trim() : '';
+  if (name && name !== 'HEAD') return name;
+
+  const symbolic = await git(['symbolic-ref', '--short', 'HEAD']);
+  return symbolic.code === 0 ? symbolic.output.trim() : name;
+}
+
 export async function checkGit(check, ctx) {
   const git = (args) => runProcess(['git', ...args], { cwd: ctx.workspaceDir, timeoutMs: GIT_TIMEOUT_MS });
 
@@ -67,8 +83,7 @@ export async function checkGit(check, ctx) {
     }
 
     case 'branch_is': {
-      const result = await git(['rev-parse', '--abbrev-ref', 'HEAD']);
-      const current = result.output.trim();
+      const current = await currentBranch(git);
       return current === check.value
         ? pass(`현재 브랜치 ${current}`)
         : fail(`현재 브랜치가 ${current || '알 수 없음'} 이다 (${check.value} 이어야 한다)`);

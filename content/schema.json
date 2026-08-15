@@ -86,7 +86,7 @@
       "description": "스텝에 들어가기 전에 연출할 상황. 학습자 저장소를 변형하므로 한 번만 적용된다.",
       "properties": {
         "scenario": {
-          "enum": ["ensure_remote", "teammate_push"],
+          "enum": ["ensure_remote", "teammate_push", "seed_files"],
           "description": "dojo/scenario.mjs 의 SCENARIOS 에 등록된 이름."
         },
         "announce": {
@@ -97,7 +97,21 @@
         "file": { "type": "string", "description": "teammate_push: 동료가 건드린 파일." },
         "content": { "type": "string", "description": "teammate_push: 그 파일의 새 내용." },
         "message": { "type": "string", "description": "teammate_push: 동료의 커밋 메시지." },
-        "branch": { "type": "string", "default": "main" }
+        "branch": { "type": "string", "default": "main" },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "description": "seed_files: workspace에 놓을 파일들. 이미 있는 파일은 덮어쓰지 않고 건너뛴다.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "content"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1, "description": "workspace 기준 상대 경로. 상위 탈출·절대 경로는 거부된다." },
+              "content": { "type": "string", "description": "그 파일의 내용." }
+            }
+          }
+        }
       }
     },
     "predict": {

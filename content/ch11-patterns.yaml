@@ -1,0 +1,1133 @@
+id: ch11
+title: "11장 · 갈아 끼운다"
+goal: "코드를 바꾸지 않고 동작을 갈아 끼울 수 있는 구조로 만든다"
+intro: |
+  마지막 장이다. 여기까지 온 코드에는 이미 여러 결정이 쌓여 있다 —
+  모듈로 나눴고, 입력을 막았고, 틀로 묶었고, 테스트로 지켰다.
+
+  이제 마지막 물음이 남는다. **새 요구가 왔을 때 어디를 고쳐야 하는가.**
+
+  "정렬 기능을 넣어 줘"라는 말에 `if` 를 하나 더 붙이고, 또 하나 더 붙이는 식이라면
+  그 함수는 요구가 올 때마다 자란다. 손댈 때마다 이미 돌아가던 것을 깨뜨릴 위험이 생긴다.
+
+  디자인 패턴은 그 위험을 줄이는 **자리 배치** 다. 새로운 문법이 아니다 —
+  지금까지 배운 함수·객체·모듈을 어디에 두느냐의 문제다.
+
+  이 장의 판정은 이름을 보지 않는다. `Strategy` 라고 이름 붙였는지가 아니라
+  **정말로 갈아 끼워지는지, 해지하면 멈추는지, 되돌리면 돌아오는지** 를 돌려 보고 판정한다.
+
+steps:
+  - id: ch11-s01
+    concept: strategy
+    kind: edit
+    goal: "정렬 방식을 갈아 끼울 수 있게 만든다"
+    setup:
+      scenario: seed_files
+      announce: |
+        정렬 로직이 if 사슬로 뭉쳐 있는 lib/legacy-sort.mjs 를 놓아 두었다.
+        누군가 급하게 만들어 둔 코드다. 이것을 갈아 끼우는 것이 이 스텝의 과제다.
+      files:
+        - path: "lib/legacy-sort.mjs"
+          content: |
+            // 정렬 방식이 늘어날 때마다 이 함수를 고쳐야 한다.
+            export function sortTasks(tasks, how) {
+              if (how === 'title') {
+                return tasks.slice().sort((a, b) => a.title.localeCompare(b.title))
+              } else if (how === 'pending') {
+                return tasks.slice().sort((a, b) => Number(a.done) - Number(b.done))
+              } else {
+                return tasks.slice()
+              }
+            }
+    teach: |
+      심어 둔 `lib/legacy-sort.mjs` 를 열어 보라. 지금은 세 가지뿐이라 읽을 만하다.
+      그런데 "만든 날짜순"이 필요해지면? "제목 역순"은? 그때마다 이 함수를 고쳐야 한다.
+
+      **고쳐야 하는 함수는 이미 돌아가던 부분까지 위험에 빠뜨린다.**
+      제목순 정렬을 손보다가 미완료순을 깨뜨릴 수 있다.
+
+      바꾸는 대신 **더할 수 있게** 만든다. 정렬 방식 하나하나를 함수로 떼어 이름표를 붙여 둔다.
+
+        export const SORTS = {
+          none: (tasks) => tasks.slice(),
+          title: (tasks) => tasks.slice().sort((a, b) => a.title.localeCompare(b.title)),
+          pending: (tasks) => tasks.slice().sort((a, b) => Number(a.done) - Number(b.done)),
+        }
+
+      그리고 고르는 일만 하는 함수를 둔다.
+
+        import { invalidInput } from './errors.mjs'
+
+        export function sortTasks(tasks, how = 'none') {
+          const strategy = SORTS[how]
+          if (!strategy) {
+            throw invalidInput(`그런 정렬 방식이 없다: ${how}`)
+          }
+          return strategy(tasks)
+        }
+
+      **`sortTasks` 에는 이제 정렬 방법이 하나도 없다.** 고를 뿐이다.
+      새 정렬이 필요하면 `SORTS` 에 한 줄 더하면 되고, 이 함수는 영영 손대지 않는다.
+      이것이 전략 패턴이다.
+
+      셋 다 `slice()` 로 복사한 뒤 정렬하는 것에 주의한다. `sort` 는 원본을 뒤섞는다 —
+      4장의 `map` 처럼 새것을 돌려주는 편이 안전하다.
+
+      `workspace/lib/sort.mjs` 에 만들고, **`lib/legacy-sort.mjs` 는 지운다.**
+      갈아 끼웠으면 옛것을 남겨 두지 않는다. 남아 있으면 어느 쪽이 진짜인지 헷갈린다.
+    predict:
+      question: "정렬 방식이 스무 가지가 되면, if 사슬 방식과 이름표 방식은 무엇이 달라질까?"
+      answer_pattern: "고치|안 ?고|더하|추가|건드리지|길어"
+      reveal: |
+        if 사슬은 함수가 스무 갈래로 자라고, 하나를 손볼 때마다 나머지 열아홉을 함께 위험에 빠뜨린다.
+        이름표 방식은 목록에 항목이 스무 개 늘어날 뿐, 고르는 함수는 첫날 그대로다.
+        **한 번 맞게 만들어 두고 다시 손대지 않는 코드** 를 만드는 것이 이 패턴의 목적이다.
+    fade:
+      copy: |
+        export function sortTasks(tasks, how = 'none') {
+          const strategy = SORTS[how]
+          if (!strategy) {
+            throw invalidInput(`그런 정렬 방식이 없다: ${how}`)
+          }
+          return strategy(tasks)
+        }
+      fill: |
+        export function sortTasks(tasks, how = 'none') {
+          const strategy = SORTS[____]
+          if (!strategy) {
+            throw invalidInput(`그런 정렬 방식이 없다: ${how}`)
+          }
+          return ____(tasks)
+        }
+      recall: "정렬 방식들을 이름표 붙은 함수로 모으고, 고르기만 하는 함수를 따로 둔다. 옛 파일은 지운다"
+    hints:
+      - "방식이 늘 때마다 함수를 고쳐야 한다면, 그 함수는 요구가 올 때마다 위험해진다."
+      - "정렬 방식 하나하나를 함수로 떼어 이름표를 붙인 객체에 담고, 고르는 함수는 그 객체에서 꺼내 쓰기만 한다."
+      - "export const SORTS = { none, title, pending } 을 만들고, sortTasks 는 SORTS[how] 를 꺼내 없으면 던지고 있으면 부른다."
+    verify:
+      - type: fs
+        label: "갈아 끼운 뒤 옛 파일을 치웠다"
+        path: "lib/legacy-sort.mjs"
+        exists: false
+      - type: cmd
+        label: "세 가지 정렬이 실제로 서로 다르게 동작한다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { sortTasks } from './lib/sort.mjs'
+            import assert from 'node:assert/strict'
+
+            const tasks = [
+              { title: '다 하기', done: true },
+              { title: '가 하기', done: false },
+              { title: '나 하기', done: true },
+            ]
+            const titles = (list) => list.map((task) => task.title)
+
+            assert.deepEqual(titles(sortTasks(tasks, 'title')), ['가 하기', '나 하기', '다 하기'])
+            assert.deepEqual(titles(sortTasks(tasks, 'none')), ['다 하기', '가 하기', '나 하기'])
+            assert.equal(sortTasks(tasks, 'pending')[0].done, false, '아직 안 끝난 것이 앞에 와야 한다')
+
+            assert.deepEqual(titles(tasks), ['다 하기', '가 하기', '나 하기'], '원본을 뒤섞으면 안 된다')
+      - type: cmd
+        label: "새 정렬을 더해도 고르는 함수는 고치지 않아도 된다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { SORTS, sortTasks } from './lib/sort.mjs'
+            import assert from 'node:assert/strict'
+
+            // 이것이 전략 패턴의 핵심이다. if 사슬이라면 여기서 반드시 막힌다.
+            SORTS.titleDesc = (tasks) => tasks.slice().sort((a, b) => b.title.localeCompare(a.title))
+
+            const tasks = [
+              { title: '가 하기', done: false },
+              { title: '다 하기', done: false },
+              { title: '나 하기', done: false },
+            ]
+
+            assert.deepEqual(
+              sortTasks(tasks, 'titleDesc').map((task) => task.title),
+              ['다 하기', '나 하기', '가 하기'],
+              '목록에 더한 새 방식이 곧바로 쓰여야 한다 — 고르는 함수 안에 방법이 박혀 있으면 안 된다',
+            )
+      - type: cmd
+        label: "모르는 정렬 방식은 이름 붙은 실패로 거부한다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { sortTasks } from './lib/sort.mjs'
+            import assert from 'node:assert/strict'
+
+            try {
+              sortTasks([], '아무거나')
+            } catch (error) {
+              assert.equal(error.name, 'InvalidInputError', `이름 붙은 실패여야 한다 (받은 것: ${error.name})`)
+              process.exit(0)
+            }
+            assert.fail('모르는 정렬 방식을 그냥 넘어갔다')
+    review_card:
+      front: "전략 패턴에서 '고르는 함수'가 절대 갖고 있으면 안 되는 것은?"
+      back: "방법 자체. 고르기만 하고, 방법은 이름표 붙은 함수들이 갖는다"
+      answer_pattern: "방법|구현|로직|if"
+
+  - id: ch11-s02
+    concept: observer
+    kind: edit
+    goal: "목록이 바뀔 때 알림을 받을 수 있게 한다"
+    teach: |
+      "할 일을 추가할 때마다 기록을 남겨 줘"라는 요구가 왔다.
+      `TaskStore.add` 안에 기록 코드를 넣으면 될까? 그러면 다음에는 "알림도 보내 줘"가 온다.
+      **`add` 는 할 일을 더하는 일만 알아야 한다.**
+
+      바뀌었다는 사실만 알리고, 그것으로 무엇을 할지는 듣는 쪽이 정하게 한다.
+
+        export class TaskStore {
+          #tasks
+          #listeners = []
+
+          on(event, handler) {
+            const entry = { event, handler }
+            this.#listeners.push(entry)
+            return () => {
+              this.#listeners = this.#listeners.filter((it) => it !== entry)
+            }
+          }
+
+          #emit(event, payload) {
+            for (const entry of this.#listeners) {
+              if (entry.event === event) entry.handler(payload)
+            }
+          }
+
+          add(title) {
+            const added = addTask(this.#tasks, title)
+            this.#emit('added', added)
+            return added
+          }
+
+          complete(title) {
+            const target = completeTask(this.#tasks, title)
+            if (target) this.#emit('completed', target)
+            return target
+          }
+        }
+
+      **`on` 이 해지 함수를 돌려주는 것** 이 이 패턴의 절반이다.
+      구독은 쉽고 해지는 어렵다 — 나중에 무엇을 지워야 하는지 알아야 하기 때문이다.
+      구독하는 순간 해지 방법을 함께 건네주면 그 문제가 사라진다.
+
+        const off = store.on('added', (task) => console.log('추가됨', task.title))
+        off()   // 이제 통지가 오지 않는다
+
+      `#emit` 도 `#` 으로 감춘다. 통지를 보내는 것은 틀 자신의 일이지 밖에서 부를 일이 아니다.
+
+      완료 통지는 **실제로 찾았을 때만** 보낸다. 못 찾았으면 아무것도 바뀌지 않았으니 알릴 것도 없다.
+    predict:
+      question: "구독자가 아무도 없을 때 `store.add('우유 사기')` 를 부르면 어떻게 될까?"
+      answer_pattern: "그냥|정상|잘|평소|똑같|아무"
+      reveal: |
+        평소대로 추가된다. 통지를 보낼 곳이 없으면 반복문이 한 바퀴도 돌지 않을 뿐이다.
+        이것이 중요한 성질이다 — **듣는 쪽이 있든 없든 알리는 쪽은 자기 일을 한다.**
+        둘이 서로를 모르는 채로 붙어 있는 것, 그것이 이 패턴이 노리는 것이다.
+    fade:
+      copy: |
+        on(event, handler) {
+          const entry = { event, handler }
+          this.#listeners.push(entry)
+          return () => {
+            this.#listeners = this.#listeners.filter((it) => it !== entry)
+          }
+        }
+      fill: |
+        on(event, handler) {
+          const entry = { event, handler }
+          this.#listeners.push(entry)
+          ____ () => {
+            this.#listeners = this.#listeners.____((it) => it !== entry)
+          }
+        }
+      recall: "TaskStore 가 추가·완료를 알리게 하고, 구독할 때 해지 함수를 함께 돌려주게 한다"
+    hints:
+      - "add 안에 기록 코드를 넣으면 다음 요구가 올 때 또 넣어야 한다. 알리기만 하고 나머지는 듣는 쪽에 맡긴다."
+      - "구독 목록을 감춘 필드로 두고, on 은 목록에 담은 뒤 그것을 지우는 함수를 돌려준다. add·complete 에서 통지를 보낸다."
+      - "on(event, handler) 가 { event, handler } 를 담고 () => 그 항목을 걸러 내는 함수를 return 한다. #emit(event, payload) 로 같은 이름의 구독자만 부른다."
+    verify:
+      - type: cmd
+        label: "추가와 완료를 알린다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { TaskStore } from './lib/task-store.mjs'
+            import assert from 'node:assert/strict'
+
+            const store = new TaskStore()
+            const added = []
+            const completed = []
+            store.on('added', (task) => added.push(task.title))
+            store.on('completed', (task) => completed.push(task.title))
+
+            store.add('우유 사기')
+            store.add('빨래 개기')
+            store.complete('우유 사기')
+
+            assert.deepEqual(added, ['우유 사기', '빨래 개기'], '추가할 때마다 알려야 한다')
+            assert.deepEqual(completed, ['우유 사기'], '완료한 것만 알려야 한다')
+      - type: cmd
+        label: "해지하면 통지가 멈춘다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { TaskStore } from './lib/task-store.mjs'
+            import assert from 'node:assert/strict'
+
+            const store = new TaskStore()
+            const seen = []
+            const off = store.on('added', (task) => seen.push(task.title))
+
+            store.add('우유 사기')
+            assert.equal(typeof off, 'function', 'on 은 해지 함수를 돌려줘야 한다')
+            off()
+            store.add('빨래 개기')
+
+            assert.deepEqual(seen, ['우유 사기'], '해지한 뒤에는 통지가 오면 안 된다')
+            assert.equal(store.size, 2, '해지해도 추가 자체는 그대로 되어야 한다')
+      - type: cmd
+        label: "여럿이 구독할 수 있고, 하나를 해지해도 나머지는 계속 받는다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { TaskStore } from './lib/task-store.mjs'
+            import assert from 'node:assert/strict'
+
+            const store = new TaskStore()
+            const first = []
+            const second = []
+            const offFirst = store.on('added', (task) => first.push(task.title))
+            store.on('added', (task) => second.push(task.title))
+
+            store.add('우유 사기')
+            offFirst()
+            store.add('빨래 개기')
+
+            assert.deepEqual(first, ['우유 사기'], '해지한 쪽은 멈춰야 한다')
+            assert.deepEqual(second, ['우유 사기', '빨래 개기'], '해지하지 않은 쪽은 계속 받아야 한다')
+      - type: cmd
+        label: "듣는 쪽이 없어도, 못 찾았을 때도 조용하다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { TaskStore } from './lib/task-store.mjs'
+            import assert from 'node:assert/strict'
+
+            const alone = new TaskStore()
+            alone.add('우유 사기')
+            assert.equal(alone.size, 1, '구독자가 없어도 자기 일은 해야 한다')
+
+            const store = new TaskStore()
+            const completed = []
+            store.on('completed', (task) => completed.push(task.title))
+            store.complete('없는 할 일')
+
+            assert.deepEqual(completed, [], '못 찾았으면 아무것도 바뀌지 않았으니 알릴 것도 없다')
+      - type: cmd
+        label: "테스트가 여전히 통과한다"
+        run: ["node", "--test"]
+        expect_output: 'fail 0'
+    review_card:
+      front: "구독 함수(on)가 해지 함수를 돌려주면 무엇이 쉬워지는가?"
+      back: "해지. 나중에 무엇을 지워야 하는지 따로 기억하지 않아도 된다"
+      answer_pattern: "해지|취소|off|지우"
+    explain:
+      question: "기록 코드를 `add` 안에 직접 넣는 것과 통지를 듣게 하는 것 — 요구가 하나 더 늘었을 때 무엇이 다른가?"
+      model_answer: |
+        고쳐야 하는 파일이 다르다. 직접 넣는 방식은 요구가 늘 때마다 `add` 를 열어야 하고,
+        그때마다 이미 돌아가던 추가 기능을 위험에 빠뜨린다. 게다가 `add` 는 점점
+        '할 일을 더하는 함수'가 아니라 '할 일을 더하고 기록하고 알림 보내는 함수'가 된다.
+        통지를 듣게 하면 새 요구는 새 구독자 하나로 끝나고, `add` 는 첫날 모습 그대로 남는다.
+      keywords:
+        - term: "고치|열"
+          nudge: "요구가 하나 늘 때 어느 파일을 열어야 하는지 세어 본다."
+        - term: "일|책임"
+          nudge: "add 가 무엇을 아는 함수인지 다시 읽어 본다."
+
+  - id: ch11-s03
+    concept: command
+    kind: edit
+    goal: "한 일을 되돌릴 수 있게 만든다"
+    teach: |
+      "잘못 눌렀어요, 되돌릴 수 있나요?"
+
+      되돌리려면 **무엇을 했는지가 값으로 남아 있어야** 한다.
+      지금은 `store.add('우유 사기')` 를 부르는 순간 그 사실이 어디에도 남지 않는다.
+
+      한 일을 **객체 하나로 감싼다.** 이름표와 실행 방법과 되돌리는 방법을 함께 지닌다.
+
+      먼저 `TaskStore` 에 되돌릴 자리를 만든다. 목록을 통째로 되돌려 놓는 메서드다.
+
+        restore(tasks) {
+          this.#tasks = tasks.slice()
+        }
+
+      그리고 `workspace/lib/command.mjs` 를 만든다.
+
+        import { invalidInput } from './errors.mjs'
+
+        export function command(store, label, action) {
+          let snapshot = null
+
+          return {
+            label,
+            run() {
+              snapshot = store.all().map((task) => ({ title: task.title, done: task.done }))
+              return action()
+            },
+            undo() {
+              if (snapshot === null) {
+                throw invalidInput(`아직 실행하지 않았거나 이미 되돌린 명령이다: ${label}`)
+              }
+              store.restore(snapshot)
+              snapshot = null
+            },
+          }
+        }
+
+      **`run` 이 하기 전에 상태를 찍어 두는 것** 이 요령이다.
+      되돌리는 방법을 일일이 짜는 대신, 하기 전 모습을 기억해 두었다가 되돌려 놓는다.
+
+      그런데 `store.all()` 만으로는 부족하다. 여기가 이 스텝에서 가장 걸려 넘어지기 쉬운 곳이다.
+
+      `all()` 은 `slice()` 로 **배열만** 복사한다. 안에 든 객체들은 원래 그것 그대로다(3장).
+      그래서 `store.complete('빨래 개기')` 가 `target.done = true` 를 하면
+      **찍어 둔 목록 안의 그 객체까지 함께 바뀐다.** 사진을 찍어 뒀다고 믿었는데
+      사진 속 인물이 같이 늙어 버리는 셈이다.
+
+      그래서 항목 하나하나를 새 객체로 옮겨 담는다.
+
+        store.all().map((task) => ({ title: task.title, done: task.done }))
+
+      `map` 이 새 배열을 만들고(4장), 그 안의 객체도 새로 만든 것이므로 이제 완전히 독립이다.
+      화살표 함수가 객체를 곧바로 돌려줄 때 **괄호로 감싸는 것**에 주의한다 —
+      `(task) => { ... }` 는 중괄호를 함수 본문으로 읽는다.
+
+      `snapshot` 이 함수 밖에 있고 `run`·`undo` 가 그것을 함께 쓰는 것을 눈여겨본다.
+      만들어진 명령마다 자기 `snapshot` 을 하나씩 갖는다 — 8장의 인스턴스 필드와 같은 성질이다.
+
+      되돌린 뒤에는 `null` 로 되돌려 둔다. **두 번 되돌리는 것은 막아야 한다.**
+      한 번 한 일을 두 번 되돌리면 엉뚱한 시점으로 가 버린다.
+    predict:
+      question: "`snapshot = store.all()` 로만 찍어 두면, `complete` 를 되돌릴 때 무슨 일이 벌어질까?"
+      answer_pattern: "안 ?되|못|같이|함께|바뀌|그대로|실패"
+      reveal: |
+        되돌려지지 않는다. `all()` 은 배열만 복사하고 안의 객체는 그대로 공유하므로,
+        `complete` 가 `done` 을 바꾸는 순간 찍어 둔 목록 안의 그 객체도 함께 바뀐다.
+        **추가는 되돌려지는데 완료는 안 되는** 얄궂은 상태가 된다 — 배열 길이는 되돌아가지만
+        객체 속 값은 이미 바뀐 뒤이기 때문이다. 이런 반쪽짜리 버그가 가장 찾기 어렵다.
+    fade:
+      copy: |
+        return {
+          label,
+          run() {
+            snapshot = store.all().map((task) => ({ title: task.title, done: task.done }))
+            return action()
+          },
+          undo() {
+            if (snapshot === null) {
+              throw invalidInput(`아직 실행하지 않았거나 이미 되돌린 명령이다: ${label}`)
+            }
+            store.restore(snapshot)
+            snapshot = null
+          },
+        }
+      fill: |
+        return {
+          label,
+          run() {
+            snapshot = store.all().____((task) => ({ title: task.title, done: task.done }))
+            return action()
+          },
+          undo() {
+            if (snapshot === null) {
+              throw invalidInput(`아직 실행하지 않았거나 이미 되돌린 명령이다: ${label}`)
+            }
+            store.____(snapshot)
+            snapshot = ____
+          },
+        }
+      recall: "한 일을 이름표·실행·되돌리기를 지닌 객체로 감싸고, 실행 전 상태를 찍어 두어 되돌린다"
+    hints:
+      - "되돌리려면 무엇을 했는지가 값으로 남아 있어야 한다. 부르고 끝나는 함수 호출로는 남지 않는다."
+      - "실행 방법과 되돌리는 방법을 한 객체에 담는다. 찍어 둔 목록 안의 객체가 원본과 같은 것이면 함께 바뀌어 버린다."
+      - "TaskStore 에 restore(tasks) 를 두고, command(store, label, action) 이 { label, run, undo } 를 돌려주게 한다. run 에서 store.all().map((task) => ({ title: task.title, done: task.done })) 을 찍는다."
+    verify:
+      - type: cmd
+        label: "실행하면 일이 일어나고, 되돌리면 원래대로 온다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { TaskStore } from './lib/task-store.mjs'
+            import { command } from './lib/command.mjs'
+            import assert from 'node:assert/strict'
+
+            const store = new TaskStore([{ title: '우유 사기', done: false }])
+            const add = command(store, '추가: 장보기', () => store.add('장보기'))
+
+            assert.equal(store.size, 1)
+            add.run()
+            assert.equal(store.size, 2, '실행하면 실제로 일어나야 한다')
+            assert.equal(store.all().at(-1).title, '장보기')
+
+            add.undo()
+            assert.equal(store.size, 1, '되돌리면 원래대로 와야 한다')
+            assert.deepEqual(store.all().map((task) => task.title), ['우유 사기'])
+      - type: cmd
+        label: "완료도 되돌릴 수 있다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { TaskStore } from './lib/task-store.mjs'
+            import { command } from './lib/command.mjs'
+            import assert from 'node:assert/strict'
+
+            const store = new TaskStore([
+              { title: '우유 사기', done: false },
+              { title: '빨래 개기', done: false },
+            ])
+            const done = command(store, '완료: 빨래 개기', () => store.complete('빨래 개기'))
+
+            done.run()
+            assert.equal(store.pending, 1, '완료했으니 남은 것이 줄어야 한다')
+
+            done.undo()
+            assert.equal(store.pending, 2, '되돌리면 다시 안 끝난 상태여야 한다')
+            assert.equal(store.all()[1].done, false)
+      - type: cmd
+        label: "여러 명령을 역순으로 되돌리면 단계마다 돌아간다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { TaskStore } from './lib/task-store.mjs'
+            import { command } from './lib/command.mjs'
+            import assert from 'node:assert/strict'
+
+            const store = new TaskStore()
+            const first = command(store, '추가: 우유 사기', () => store.add('우유 사기'))
+            const second = command(store, '추가: 빨래 개기', () => store.add('빨래 개기'))
+
+            first.run()
+            second.run()
+            assert.equal(store.size, 2)
+
+            second.undo()
+            assert.deepEqual(store.all().map((task) => task.title), ['우유 사기'], '한 단계만 돌아가야 한다')
+
+            first.undo()
+            assert.equal(store.size, 0, '두 단계를 되돌리면 처음으로 돌아가야 한다')
+      - type: cmd
+        label: "실행하지 않은 명령이나 두 번째 되돌리기는 거부한다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { TaskStore } from './lib/task-store.mjs'
+            import { command } from './lib/command.mjs'
+            import assert from 'node:assert/strict'
+
+            const store = new TaskStore()
+            const rejects = (fn, what) => {
+              try {
+                fn()
+              } catch (error) {
+                assert.equal(error.name, 'InvalidInputError', `${what}: 이름 붙은 실패여야 한다`)
+                return
+              }
+              assert.fail(`${what}: 막지 않고 통과시켰다`)
+            }
+
+            rejects(() => command(store, 'x', () => store.add('우유 사기')).undo(), '실행하지 않은 명령')
+
+            const twice = command(store, 'y', () => store.add('빨래 개기'))
+            twice.run()
+            twice.undo()
+            rejects(() => twice.undo(), '두 번째 되돌리기')
+
+            assert.equal(store.size, 0, '거부한 뒤에도 상태는 그대로여야 한다')
+      - type: cmd
+        label: "테스트가 여전히 통과한다"
+        run: ["node", "--test"]
+        expect_output: 'fail 0'
+    review_card:
+      front: "명령 객체가 지니는 세 가지는?"
+      back: "이름표(label), 실행하는 방법(run), 되돌리는 방법(undo)"
+      answer_pattern: "label|run|undo|실행|되돌"
+
+  - id: ch11-s04
+    concept: factory
+    kind: edit
+    goal: "어떤 명령을 만들지 한 곳에서 정하게 한다"
+    teach: |
+      명령을 쓰려면 부르는 쪽이 이렇게 적어야 한다.
+
+        command(store, `추가: ${title}`, () => store.add(title))
+
+      `app.mjs` 가 이걸 명령 종류마다 적으면, **명령을 만드는 방법을 app이 다 알게 된다.**
+      명령이 하나 늘 때마다 app을 고쳐야 하고, 이름표 규칙이 여기저기 흩어진다.
+
+      만드는 일만 하는 곳을 따로 둔다. `workspace/lib/command-factory.mjs` 다.
+
+        import { invalidInput } from './errors.mjs'
+        import { command } from './command.mjs'
+
+        const MAKERS = {
+          add: (store, title) => command(store, `추가: ${title}`, () => store.add(title)),
+          done: (store, title) => command(store, `완료: ${title}`, () => store.complete(title)),
+        }
+
+        export function createCommand(store, name, title) {
+          const make = MAKERS[name]
+          if (!make) {
+            throw invalidInput(`그런 명령이 없다: ${name}`)
+          }
+          return make(store, title)
+        }
+
+      s01의 `SORTS` 와 모양이 닮았다. 그럴 만하다 — 둘 다 '이름으로 고른다'는 같은 뼈대다.
+      다만 노리는 것이 다르다.
+
+        전략   같은 자리에 다른 **방법** 을 끼운다
+        팩토리 부르는 쪽이 **무엇이 만들어지는지 몰라도** 되게 한다
+
+      팩토리의 값어치는 **돌려주는 것들이 모두 같은 모양** 이라는 데 있다.
+      `add` 로 만들었든 `done` 으로 만들었든 `{ label, run, undo }` 다.
+      그래서 부르는 쪽은 종류를 구별하지 않고 `run()` 만 부르면 된다 — `if` 가 사라진다.
+
+        const command = createCommand(store, process.argv[2], title)
+        command.run()
+    fade:
+      copy: |
+        export function createCommand(store, name, title) {
+          const make = MAKERS[name]
+          if (!make) {
+            throw invalidInput(`그런 명령이 없다: ${name}`)
+          }
+          return make(store, title)
+        }
+      fill: |
+        export function createCommand(store, name, title) {
+          const make = MAKERS[____]
+          if (!make) {
+            throw invalidInput(`그런 명령이 없다: ${name}`)
+          }
+          return ____(store, title)
+        }
+      recall: "명령 이름으로 알맞은 명령 객체를 만들어 주는 곳을 따로 두고, 모르는 이름은 거부하게 한다"
+    hints:
+      - "명령을 만드는 방법을 app 이 알고 있으면, 명령이 늘 때마다 app 을 고쳐야 한다."
+      - "이름표 붙은 만들기 함수들을 한 객체에 모으고, 이름을 받아 알맞은 것을 골라 부르는 함수를 내보낸다."
+      - "MAKERS = { add: ..., done: ... } 을 두고, createCommand(store, name, title) 이 MAKERS[name] 을 꺼내 없으면 던지고 있으면 부른다."
+    verify:
+      - type: cmd
+        label: "종류가 달라도 같은 모양의 명령을 돌려준다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { TaskStore } from './lib/task-store.mjs'
+            import { createCommand } from './lib/command-factory.mjs'
+            import assert from 'node:assert/strict'
+
+            const store = new TaskStore()
+            for (const name of ['add', 'done']) {
+              const made = createCommand(store, name, '우유 사기')
+              assert.equal(typeof made.run, 'function', `${name}: run 이 있어야 한다`)
+              assert.equal(typeof made.undo, 'function', `${name}: undo 가 있어야 한다`)
+              assert.equal(typeof made.label, 'string', `${name}: 이름표가 있어야 한다`)
+              assert.match(made.label, /우유 사기/, `${name}: 이름표에 제목이 들어가야 한다`)
+            }
+      - type: cmd
+        label: "부르는 쪽이 종류를 구별하지 않고 써도 각각 제 일을 한다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { TaskStore } from './lib/task-store.mjs'
+            import { createCommand } from './lib/command-factory.mjs'
+            import assert from 'node:assert/strict'
+
+            const store = new TaskStore()
+
+            // 종류를 묻지 않고 똑같이 다룬다. 이것이 팩토리가 노리는 것이다.
+            for (const [name, title] of [['add', '우유 사기'], ['add', '빨래 개기'], ['done', '우유 사기']]) {
+              createCommand(store, name, title).run()
+            }
+
+            assert.equal(store.size, 2, 'add 두 번이 반영돼야 한다')
+            assert.equal(store.pending, 1, 'done 한 번이 반영돼야 한다')
+      - type: cmd
+        label: "만들어 준 명령은 되돌릴 수 있다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { TaskStore } from './lib/task-store.mjs'
+            import { createCommand } from './lib/command-factory.mjs'
+            import assert from 'node:assert/strict'
+
+            const store = new TaskStore([{ title: '우유 사기', done: false }])
+
+            const add = createCommand(store, 'add', '장보기')
+            add.run()
+            assert.equal(store.size, 2)
+            add.undo()
+            assert.equal(store.size, 1, '팩토리가 만든 것도 되돌릴 수 있어야 한다')
+
+            const done = createCommand(store, 'done', '우유 사기')
+            done.run()
+            assert.equal(store.pending, 0)
+            done.undo()
+            assert.equal(store.pending, 1)
+      - type: cmd
+        label: "모르는 명령 이름은 이름 붙은 실패로 거부한다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { TaskStore } from './lib/task-store.mjs'
+            import { createCommand } from './lib/command-factory.mjs'
+            import assert from 'node:assert/strict'
+
+            try {
+              createCommand(new TaskStore(), '지우기', '우유 사기')
+            } catch (error) {
+              assert.equal(error.name, 'InvalidInputError', `이름 붙은 실패여야 한다 (받은 것: ${error.name})`)
+              process.exit(0)
+            }
+            assert.fail('모르는 명령 이름을 그냥 넘어갔다')
+    review_card:
+      front: "전략 패턴과 팩토리 패턴은 뼈대가 닮았다. 노리는 것은 어떻게 다른가?"
+      back: "전략은 같은 자리에 다른 방법을 끼우고, 팩토리는 부르는 쪽이 무엇이 만들어지는지 몰라도 되게 한다"
+      answer_pattern: "방법|만들|몰라도|생성"
+
+  - id: ch11-s05
+    concept: singleton-module
+    kind: edit
+    goal: "온 프로그램이 하나만 나눠 쓰는 것을 만든다"
+    teach: |
+      8장 첫 스텝에서 배운 것을 뒤집는다. 그때는 **인스턴스마다 따로** 여야 했다.
+      그런데 하나뿐이어야 좋은 것도 있다 — 실행 기록이 그렇다.
+      여기저기서 기록을 남기는데 저장되는 곳이 여럿이면 아무 소용이 없다.
+
+      자바스크립트에서는 애써 만들 것이 없다. **모듈이 곧 싱글턴이다.**
+      모듈은 처음 `import` 될 때 딱 한 번 평가되고, 그 뒤로는 같은 것이 건네진다.
+
+      `workspace/lib/logger.mjs` 를 만든다.
+
+        const entries = []
+
+        export function log(message) {
+          entries.push(`${entries.length + 1}. ${message}`)
+        }
+
+        export function history() {
+          return entries.slice()
+        }
+
+        export function clear() {
+          entries.length = 0
+        }
+
+      `entries` 는 내보내지 않는다(5장). 밖에서는 `log` 로 넣고 `history` 로 읽을 뿐이다.
+      `history` 가 복사본을 돌려주는 것도 같은 이유다(8장).
+
+      `clear` 를 두는 이유는 하나다 — **테스트 때문이다.**
+      하나를 나눠 쓴다는 것은 앞 테스트가 남긴 것이 뒤 테스트에 흘러든다는 뜻이기도 하다(9장).
+      싱글턴을 만들 때는 비우는 방법을 함께 만들어 둔다.
+
+      `entries.length = 0` 은 배열을 비운다. `entries = []` 로 하지 않는 것에 주의한다 —
+      `const` 라서 다시 대입할 수 없고, 설령 된다 해도 그러면 **이전 것을 보던 쪽은 옛 배열을 계속 본다.**
+
+      싱글턴은 편하지만 값이 비싸다. 온 프로그램이 하나를 나눠 쓰므로
+      누가 언제 무엇을 넣었는지 추적하기 어려워진다.
+      **하나여야만 하는 이유가 뚜렷할 때만** 쓴다. 기록·설정 정도가 그렇다.
+    predict:
+      question: "같은 모듈을 두 파일에서 각각 `import` 하면, 그 안의 배열은 하나일까 둘일까?"
+      answer_pattern: "하나|1|같|공유|한 ?개"
+      reveal: |
+        하나다. 모듈은 처음 불려 올 때 한 번만 평가되고, 그 뒤로는 같은 것이 건네진다.
+        그래서 애써 무언가를 하지 않아도 모듈은 이미 싱글턴이다.
+        편리한 만큼 조심할 것도 따라온다 — 한 곳에서 담은 것을 온 프로그램이 함께 보게 된다.
+    fade:
+      copy: |
+        const entries = []
+
+        export function log(message) {
+          entries.push(`${entries.length + 1}. ${message}`)
+        }
+
+        export function history() {
+          return entries.slice()
+        }
+
+        export function clear() {
+          entries.length = 0
+        }
+      fill: |
+        ____ entries = []
+
+        export function log(message) {
+          entries.push(`${entries.length + 1}. ${message}`)
+        }
+
+        export function history() {
+          return entries.____()
+        }
+
+        export function clear() {
+          entries.____ = 0
+        }
+      recall: "실행 기록을 담는 모듈을 만들되, 안쪽 배열은 감추고 읽기는 복사본으로 주고 비우는 방법도 함께 둔다"
+    hints:
+      - "기록이 여러 곳에 나뉘어 저장되면 아무 소용이 없다. 하나여야 한다."
+      - "모듈 최상위에 배열을 두면 그것 자체가 하나뿐인 것이 된다. 내보내지 말고 넣기·읽기·비우기 함수만 내보낸다."
+      - "const entries = [] 를 내보내지 않고 두고, log·history·clear 세 함수를 내보낸다. history 는 slice() 로 복사해 준다."
+    verify:
+      - type: cmd
+        label: "어디서 불러 오든 같은 것을 본다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import assert from 'node:assert/strict'
+
+            const first = await import('./lib/logger.mjs')
+            const second = await import('./lib/logger.mjs')
+
+            first.clear()
+            first.log('첫 번째')
+            second.log('두 번째')
+
+            assert.equal(
+              second.history().length,
+              2,
+              '따로 불러 온 쪽이 다른 기록을 보고 있다 — 모듈 안이 아니라 함수 안에 배열을 두었을 수 있다',
+            )
+            assert.deepEqual(first.history(), second.history(), '둘은 같은 것을 봐야 한다')
+      - type: cmd
+        label: "안쪽 배열은 감춰져 있고, 읽기는 복사본으로 준다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import * as logger from './lib/logger.mjs'
+            import assert from 'node:assert/strict'
+
+            assert.equal(logger.entries, undefined, '안쪽 배열을 내보내면 아무나 밀어 넣을 수 있다')
+
+            logger.clear()
+            logger.log('우유 사기 추가')
+
+            const escaped = logger.history()
+            escaped.push('몰래 넣은 것')
+            escaped.length = 0
+
+            assert.equal(logger.history().length, 1, '읽어 간 것으로 안쪽을 바꿀 수 있으면 안 된다')
+      - type: cmd
+        label: "비울 수 있다 — 비운 뒤에도 같은 것을 계속 본다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { clear, history, log } from './lib/logger.mjs'
+            import assert from 'node:assert/strict'
+
+            log('하나')
+            log('둘')
+            assert.ok(history().length >= 2)
+
+            clear()
+            assert.deepEqual(history(), [], '비우면 기록이 없어야 한다')
+
+            log('셋')
+            assert.equal(history().length, 1, '비운 뒤에도 계속 쌓을 수 있어야 한다')
+      - type: cmd
+        label: "테스트가 여전히 통과한다"
+        run: ["node", "--test"]
+        expect_output: 'fail 0'
+    review_card:
+      front: "자바스크립트에서 싱글턴을 만들려면 무엇이 필요한가?"
+      back: "아무것도. 모듈이 이미 한 번만 평가되므로 모듈 자체가 싱글턴이다"
+      answer_pattern: "모듈|없|아무|자체"
+    explain:
+      question: "싱글턴을 만들 때 비우는 함수(`clear`)를 함께 두는 이유는 무엇인가?"
+      model_answer: |
+        테스트가 서로에게 흘러들기 때문이다. 하나를 나눠 쓴다는 것은 앞 테스트가 남긴 기록을
+        뒤 테스트가 그대로 본다는 뜻이고, 그러면 테스트 순서에 따라 결과가 달라진다.
+        9장에서 테스트는 자기 상태를 스스로 만들어야 한다고 했는데, 싱글턴은 그것을 어렵게 만든다.
+        비우는 방법을 함께 주는 것이 그 대가를 치르는 방식이다.
+      keywords:
+        - term: "테스트"
+          nudge: "앞 테스트가 남긴 것이 뒤 테스트에 어떻게 보일지 생각해 본다."
+        - term: "순서|흘러|남"
+          nudge: "9장의 테스트 격리와 무엇이 부딪히는지 짚어 본다."
+
+  - id: ch11-s06
+    concept: plugged-cli
+    kind: edit
+    boss: true
+    goal: "app.mjs 를 갈아 끼울 수 있는 부품들로만 굴린다"
+    teach: |
+      마지막 과제다. 힌트는 없다.
+
+      `app.mjs` 를 이 장에서 만든 부품들로 다시 짠다. 목표는 하나다 —
+      **app.mjs 안에 '어떻게 하는지'가 하나도 없게 만든다.** 무엇을 할지 고르고 결과를 찍기만 한다.
+
+      할 일은 셋이다.
+
+      **1. `list` 가 정렬을 받는다.**
+
+          node app.mjs list                  지금까지처럼
+          node app.mjs list --sort=title     제목순
+          node app.mjs list --sort=pending   아직 안 끝난 것부터
+          node app.mjs list --sort=아무거나   실패 + 이유 + 종료 코드 1
+
+      세 번째 인자가 `--sort=` 로 시작하면 그 뒤를 정렬 이름으로 쓴다.
+      없으면 `none` 이다. 찍을 때 `sortTasks(store.all(), 이름)` 을 쓴다.
+      **`app.mjs` 안에서 직접 `sort` 를 부르지 않는다.**
+
+      **2. `add` 와 `done` 은 팩토리가 만든 명령으로 한다.**
+
+          const made = createCommand(store, command, title)
+          made.run()
+
+      `if (command === 'add') ... else if (command === 'done') ...` 로 갈라 각각 다른 함수를
+      부르던 것이 사라진다. 종류를 구별하지 않고 `run()` 만 부른다.
+      실패는 지금까지처럼 이유를 알리고 종료 코드 1로 끝낸다.
+
+      **3. 목록이 바뀌면 기록에 남긴다.**
+
+      `store.on('added', ...)` 과 `store.on('completed', ...)` 로 구독해서 `log(...)` 를 부른다.
+      그리고 명령이 끝난 뒤 그 기록을 화면에 함께 찍는다.
+
+          기록: 1. 추가: 장보기
+
+      다 되면 이 여섯이 참이어야 한다.
+
+        · `--sort=title` 과 `--sort=pending` 이 실제로 다르게 나온다
+        · 모르는 정렬 이름은 이유를 알리고 종료 코드 1
+        · add·done 이 여전히 파일에 저장된다
+        · 빈 제목·없는 제목·망가진 파일 처리가 그대로다
+        · `node --test` 가 통과한다
+        · `app.mjs` 안에 `localeCompare` 도, `addTask` 도, `completeTask` 도 없다
+
+      마지막 줄이 이 장 전체의 요약이다. **app은 무엇을 할지만 알고, 어떻게 하는지는 모른다.**
+    verify:
+      - type: fs
+        label: "app.mjs 안에 '어떻게 하는지'가 남아 있지 않다"
+        path: "app.mjs"
+        not_matches: ['localeCompare', 'addTask\(', 'completeTask\(', '\.sort\(']
+      - type: fs
+        label: "app.mjs 가 이 장의 부품들을 쓴다"
+        path: "app.mjs"
+        matches: ['sortTasks\(', 'createCommand\(', 'store\.on\(']
+      - type: cmd
+        label: "정렬 방식마다 실제로 다르게 나온다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { readFile, writeFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const keep = await readFile('tasks.json', 'utf8').catch(() => null)
+            const restore = async () => (keep === null
+              ? rm('tasks.json', { force: true })
+              : writeFile('tasks.json', keep))
+
+            const order = (text) => text
+              .split('\n')
+              .map((line) => line.match(/^\d+\. \[[ x]\] (.+)$/))
+              .filter(Boolean)
+              .map((match) => match[1].trim())
+
+            try {
+              await writeFile('tasks.json', JSON.stringify([
+                { title: '다 하기', done: true },
+                { title: '가 하기', done: false },
+                { title: '나 하기', done: true },
+              ]))
+
+              const plain = await run(process.execPath, ['app.mjs', 'list'])
+              assert.deepEqual(order(plain.stdout), ['다 하기', '가 하기', '나 하기'], '정렬 없이는 담긴 순서 그대로다')
+
+              const byTitle = await run(process.execPath, ['app.mjs', 'list', '--sort=title'])
+              assert.deepEqual(order(byTitle.stdout), ['가 하기', '나 하기', '다 하기'], '제목순으로 나와야 한다')
+
+              const byPending = await run(process.execPath, ['app.mjs', 'list', '--sort=pending'])
+              assert.equal(order(byPending.stdout)[0], '가 하기', '아직 안 끝난 것이 앞에 와야 한다')
+            } finally {
+              await restore()
+            }
+      - type: cmd
+        label: "모르는 정렬 이름은 이유를 알리고 실패로 끝낸다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { readFile, writeFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const keep = await readFile('tasks.json', 'utf8').catch(() => null)
+            const restore = async () => (keep === null
+              ? rm('tasks.json', { force: true })
+              : writeFile('tasks.json', keep))
+
+            try {
+              await writeFile('tasks.json', JSON.stringify([{ title: '우유 사기', done: false }]))
+
+              const result = await run(process.execPath, ['app.mjs', 'list', '--sort=아무거나']).catch((error) => error)
+              const output = `${result.stdout ?? ''}${result.stderr ?? ''}`
+
+              assert.equal(result.code, 1, '모르는 정렬 이름은 실패로 끝나야 한다')
+              assert.match(output, /정렬/, '무엇이 잘못됐는지 알려 줘야 한다')
+              assert.doesNotMatch(output, /^\s+at\s/m, '스택 트레이스를 보이면 안 된다')
+            } finally {
+              await restore()
+            }
+      - type: cmd
+        label: "명령이 기록에 남고 화면에 함께 나온다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { readFile, writeFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const keep = await readFile('tasks.json', 'utf8').catch(() => null)
+            const restore = async () => (keep === null
+              ? rm('tasks.json', { force: true })
+              : writeFile('tasks.json', keep))
+
+            try {
+              await rm('tasks.json', { force: true })
+
+              const added = await run(process.execPath, ['app.mjs', 'add', '장보기'])
+              assert.match(added.stdout, /기록:/, '기록이 화면에 함께 나와야 한다')
+              assert.match(added.stdout, /장보기/, '기록에 무엇을 했는지 남아야 한다')
+
+              const saved = JSON.parse(await readFile('tasks.json', 'utf8'))
+              assert.deepEqual(saved.map((task) => task.title), ['장보기'], '저장은 그대로 되어야 한다')
+
+              const done = await run(process.execPath, ['app.mjs', 'done', '장보기'])
+              assert.match(done.stdout, /기록:/)
+
+              const after = JSON.parse(await readFile('tasks.json', 'utf8'))
+              assert.equal(after[0].done, true, '완료가 저장돼야 한다')
+            } finally {
+              await restore()
+            }
+      - type: cmd
+        label: "6·7장에서 세운 실패 처리가 그대로다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { readFile, writeFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const keep = await readFile('tasks.json', 'utf8').catch(() => null)
+            const restore = async () => (keep === null
+              ? rm('tasks.json', { force: true })
+              : writeFile('tasks.json', keep))
+            const output = (result) => `${result.stdout ?? ''}${result.stderr ?? ''}`
+
+            try {
+              await rm('tasks.json', { force: true })
+
+              const empty = await run(process.execPath, ['app.mjs', 'add']).catch((error) => error)
+              assert.equal(empty.code, 1, '빈 제목은 실패로 끝나야 한다')
+              assert.doesNotMatch(output(empty), /^\s+at\s/m, '스택 트레이스를 보이면 안 된다')
+
+              await writeFile('tasks.json', JSON.stringify([{ title: '우유 사기', done: false }]))
+              const missing = await run(process.execPath, ['app.mjs', 'done', '세차하기']).catch((error) => error)
+              assert.equal(missing.code, 1)
+              assert.match(output(missing), /없다/)
+
+              await writeFile('tasks.json', '[{"title": "우유 사기",')
+              const broken = await run(process.execPath, ['app.mjs', 'list']).catch((error) => error)
+              assert.equal(broken.code, 1, '망가진 파일이면 실패로 끝나야 한다')
+              assert.doesNotMatch(output(broken), /^\s+at\s/m)
+
+              // 망가진 파일을 치우고 나서 본다. 그대로 두면 사용법이 아니라 읽기 실패가 먼저 난다.
+              await rm('tasks.json', { force: true })
+              const noCommand = await run(process.execPath, ['app.mjs']).catch((error) => error)
+              assert.equal(noCommand.code, 1)
+              assert.match(output(noCommand), /사용법/)
+            } finally {
+              await restore()
+            }
+      - type: cmd
+        label: "테스트가 전부 통과한다"
+        run: ["node", "--test"]
+        expect_output: 'fail 0'
+    review_card:
+      front: "이 장의 패턴들이 공통으로 노리는 것 한 가지는?"
+      back: "새 요구가 와도 이미 돌아가던 코드를 고치지 않게 하는 것"
+      answer_pattern: "고치지|안 ?고|바꾸지|더하|확장"
+    explain:
+      question: "여기까지 온 코드에 \"마감일순 정렬\"을 넣어 달라는 요구가 왔다. 어디를 고치게 되나?"
+      model_answer: |
+        `lib/sort.mjs` 의 `SORTS` 에 한 줄 더한다. 그것으로 끝이다.
+        `sortTasks` 도, `app.mjs` 도, `TaskStore` 도 열지 않는다.
+        1장부터 쌓아 온 것이 여기서 값을 한다 — 모듈로 나눴기에 고칠 파일이 하나로 좁혀지고,
+        테스트가 있기에 고친 뒤 나머지가 무사한지 한 줄로 확인되고,
+        전략으로 두었기에 고르는 코드를 건드리지 않아도 된다.
+        좋은 구조란 '고칠 곳이 어디인지 묻지 않아도 아는 상태'다.
+      keywords:
+        - term: "SORTS|한 ?줄|더하"
+          nudge: "새 정렬 방식이 실제로 어디에 적히는지 짚어 본다."
+        - term: "안 ?고치|건드리지|열지"
+          nudge: "고치지 **않아도 되는** 파일들을 세어 본다."

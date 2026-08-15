@@ -29,6 +29,7 @@
 | `dojo/scenario.mjs` | 학습자 저장소를 변형하는 모듈. 모든 변형은 되돌릴 수 있어야 한다 |
 | `dojo/workspace.mjs` | workspace 삭제 전담. 경로 3중 봉쇄를 통과한 것만 지운다 |
 | `content/*.yaml` + `content/schema.json` | 커리큘럼 단일 진실 소스. 엔진에 학습 내용을 하드코딩하지 않는다 |
+| `CURRICULUM.md` | 커리큘럼 설계 근거. 장 배치·누적 관계·판정 3단 사다리. 새 챕터를 쓰기 전에 먼저 읽는다 |
 
 ## 커리큘럼 설계 원칙
 

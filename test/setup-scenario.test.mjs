@@ -85,6 +85,77 @@ test('teammate_push: 같은 줄을 건드리면 실제로 충돌이 난다', asy
   assert.match(content, /<<<<<<</, '충돌 마커가 남아 학습자가 직접 해소하게 된다');
 });
 
+test('seed_files: 선언한 파일이 하위 폴더까지 만들어 놓인다', async () => {
+  const context = await makeDojo();
+  const result = await runScenario('seed_files', context, {
+    files: [
+      { path: 'lib/legacy-sorter.mjs', content: 'export function sort() {}\n' },
+      { path: 'notes.txt', content: '고쳐야 할 코드\n' },
+    ],
+  });
+
+  assert.deepEqual(result.written.sort(), ['lib/legacy-sorter.mjs', 'notes.txt']);
+  assert.deepEqual(result.skipped, []);
+  assert.equal(
+    fs.readFileSync(path.join(context.workspaceDir, 'lib', 'legacy-sorter.mjs'), 'utf8'),
+    'export function sort() {}\n',
+  );
+});
+
+test('seed_files: 학습자가 이미 가진 파일을 덮어쓰지 않는다', async () => {
+  const context = await makeDojo();
+  const mine = path.join(context.workspaceDir, 'app.js');
+  const before = fs.readFileSync(mine, 'utf8');
+
+  const result = await runScenario('seed_files', context, {
+    files: [{ path: 'app.js', content: '지워 버리는 내용\n' }],
+  });
+
+  assert.equal(fs.readFileSync(mine, 'utf8'), before, '학습자 코드가 상황 연출에 밀려 사라지면 안 된다');
+  assert.deepEqual(result.skipped, ['app.js']);
+  assert.deepEqual(result.written, []);
+});
+
+test('seed_files: workspace 밖을 가리키는 경로를 거부한다', async () => {
+  const context = await makeDojo();
+
+  for (const bad of ['../evil.mjs', 'lib/../../evil.mjs', path.resolve(context.baseDir, 'evil.mjs')]) {
+    await assert.rejects(
+      () => runScenario('seed_files', context, { files: [{ path: bad, content: 'x' }] }),
+      /허용되지 않는다|허용 범위/,
+      `${bad} 가 통과하면 도장 밖 파일을 덮어쓸 수 있다`,
+    );
+  }
+  assert.equal(fs.existsSync(path.join(context.baseDir, 'evil.mjs')), false);
+});
+
+test('seed_files: 경로 하나가 잘못되면 한 파일도 놓지 않는다', async () => {
+  const context = await makeDojo();
+
+  await assert.rejects(() => runScenario('seed_files', context, {
+    files: [
+      { path: 'good.mjs', content: 'ok\n' },
+      { path: '../evil.mjs', content: 'x' },
+    ],
+  }));
+
+  assert.equal(
+    fs.existsSync(path.join(context.workspaceDir, 'good.mjs')),
+    false,
+    '절반만 심긴 상태로 남으면 학습자가 무엇이 놓였는지 알 수 없다',
+  );
+});
+
+test('seed_files: 놓을 파일 목록이 없으면 거부한다', async () => {
+  const context = await makeDojo();
+  await assert.rejects(() => runScenario('seed_files', context, { files: [] }), /files/);
+  await assert.rejects(() => runScenario('seed_files', context, {}), /files/);
+  await assert.rejects(
+    () => runScenario('seed_files', context, { files: [{ path: 'a.mjs' }] }),
+    /path와 content/,
+  );
+});
+
 test('같은 스텝의 상황은 한 번만 적용된 것으로 기록된다', () => {
   let progress = emptyProgress();
   assert.equal(Boolean(progress.setups['ch07-s02']), false);

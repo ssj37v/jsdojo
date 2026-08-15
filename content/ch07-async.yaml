@@ -1,0 +1,808 @@
+id: ch07
+title: "7장 · 기다렸다 이어간다"
+goal: "할 일을 파일에 저장하고 다시 읽어 들여, 프로그램을 껐다 켜도 목록이 남게 한다"
+intro: |
+  3장부터 계속 이상했던 것이 있다. `add` 로 넣고 `list` 를 치면 없다.
+  프로그램이 끝나는 순간 배열이 사라지기 때문이다. 지금까지 만든 것은 도구가 아니라 시연이었다.
+
+  남기려면 파일에 써야 한다. 그런데 파일을 읽고 쓰는 일은 **시간이 걸린다.**
+  Node는 그 시간 동안 멈춰 서서 기다리지 않는다 — 다른 일을 하다가 끝나면 돌아온다.
+
+  그래서 결과를 곧바로 돌려받을 수 없다. 대신 **'나중에 결과가 올 자리'** 를 받는다.
+  그것이 Promise다. 이 장은 그 자리를 다루는 법과, 그 위에 얹는 `async`/`await` 을 익힌다.
+
+  판정도 한 겹 깊어진다. 이제 화면에 무엇이 찍혔는지만으로는 부족하다 —
+  **파일에 정말 남았는지** 를 본다. 화면은 말이고 파일은 증거다.
+
+steps:
+  - id: ch07-s01
+    concept: promise
+    kind: edit
+    goal: "목록을 파일에 저장하고, 저장이 끝난 뒤에 결과를 알린다"
+    teach: |
+      `workspace/lib/store.mjs` 를 새로 만든다. 파일에 쓰고 읽는 일은 전부 이 모듈이 맡는다.
+
+        import { writeFile } from 'node:fs/promises'
+
+        const FILE = 'tasks.json'
+
+        export function saveTasks(tasks, file = FILE) {
+          return writeFile(file, JSON.stringify(tasks, null, 2))
+        }
+
+      세 가지를 짚는다.
+
+      **`node:fs/promises`** — Node의 파일 기능 중 Promise를 돌려주는 쪽이다.
+      `JSON.stringify(값, null, 2)` 는 값을 문자열로 바꾸는데, 마지막 `2` 는 들여쓰기 칸 수다.
+      사람이 열어 볼 파일이므로 읽기 좋게 둔다.
+
+      **파일 이름을 인자로 받는다.** 기본값은 `'tasks.json'` 이지만, 넘겨주면 다른 파일에 쓴다.
+      이렇게 해 두면 나중에 진짜 목록을 건드리지 않고 시험해 볼 수 있다. 9장에서 이것이 결정적이 된다.
+
+      **`writeFile` 이 돌려주는 것을 그대로 돌려준다.** 이것이 Promise다.
+      '쓰기가 끝났다'는 소식이 나중에 도착할 자리다. 지금 당장은 아무 값도 없다.
+
+      Promise를 받은 쪽은 `.then()` 으로 '끝나면 할 일'을 붙여 둔다.
+
+        const added = addTask(tasks, title)
+        saveTasks(tasks).then(() => {
+          console.log(`추가: ${render(added)}`)
+          printAll(tasks)
+        })
+
+      `.then()` 안의 함수는 **지금 실행되지 않는다.** 저장이 끝난 뒤에 불린다.
+      그래서 순서가 보장된다 — 저장에 실패하면 "추가: " 가 찍히지 않는다.
+
+      `add` 가지만 고친다. `done` 은 다음에 손댄다.
+    predict:
+      question: "`saveTasks(tasks)` 를 부른 **바로 다음 줄** 에서 파일을 열어 보면 이미 저장돼 있을까?"
+      answer_pattern: "아니|없|안 ?되|아직|모르"
+      reveal: |
+        아직 저장되지 않았을 수 있다. `saveTasks` 는 '쓰기를 시작했다'는 사실만 알려 주고 곧바로 돌아온다.
+        실제로 다 쓰였는지는 Promise가 끝났을 때에만 알 수 있다.
+        그래서 '저장 뒤에 할 일'은 반드시 `.then()` 안에 두어야 한다. 다음 줄에 그냥 적으면
+        저장이 끝나기 전에 실행될 수 있다.
+    fade:
+      copy: |
+        import { writeFile } from 'node:fs/promises'
+
+        const FILE = 'tasks.json'
+
+        export function saveTasks(tasks, file = FILE) {
+          return writeFile(file, JSON.stringify(tasks, null, 2))
+        }
+      fill: |
+        import { writeFile } from 'node:fs/____'
+
+        const FILE = 'tasks.json'
+
+        export function saveTasks(tasks, file = FILE) {
+          ____ writeFile(file, JSON.____(tasks, null, 2))
+        }
+      recall: "lib/store.mjs 를 만들어 목록을 파일에 저장하는 함수를 내보내고, app 의 add 가 저장이 끝난 뒤에 결과를 알리게 한다"
+    hints:
+      - "파일 쓰기는 곧바로 끝나지 않는다. 함수가 돌려주는 것은 결과가 아니라 '나중에 올 자리'다."
+      - "lib/store.mjs 에서 node:fs/promises 의 writeFile 결과를 그대로 돌려주고, app 에서는 그 결과에 .then 을 붙여 그 안에서 찍는다."
+      - "export function saveTasks(tasks, file = FILE) { return writeFile(file, JSON.stringify(tasks, null, 2)) } 를 만들고, saveTasks(tasks).then(() => { ... }) 안에서 출력한다."
+    verify:
+      - type: fs
+        label: "lib/store.mjs 가 Promise 기반 파일 기능을 쓴다"
+        path: "lib/store.mjs"
+        matches: ['node:fs/promises', 'saveTasks']
+      - type: fs
+        label: "app.mjs 가 저장이 끝난 뒤에 결과를 알린다"
+        path: "app.mjs"
+        matches: ['\.then\(']
+      - type: cmd
+        label: "saveTasks 는 Promise 를 돌려주고, 끝나면 파일에 목록이 들어 있다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { saveTasks } from './lib/store.mjs'
+            import { readFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            // 학습자의 진짜 목록(tasks.json)은 건드리지 않는다.
+            const file = 'tasks.check.json'
+            await rm(file, { force: true })
+
+            const pending = saveTasks([{ title: '우유 사기', done: false }], file)
+            assert.ok(
+              pending && typeof pending.then === 'function',
+              'saveTasks 는 나중에 끝날 일을 돌려줘야 한다 (Promise)',
+            )
+            await pending
+
+            const saved = JSON.parse(await readFile(file, 'utf8'))
+            assert.deepEqual(saved, [{ title: '우유 사기', done: false }], '목록이 그대로 파일에 담겨야 한다')
+
+            await saveTasks([], file)
+            assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), [], '빈 목록도 저장돼야 한다')
+
+            await rm(file, { force: true })
+      - type: cmd
+        label: "add 하면 파일에 그 할 일이 남는다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { readFile, writeFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const keep = await readFile('tasks.json', 'utf8').catch(() => null)
+            const restore = async () => (keep === null
+              ? rm('tasks.json', { force: true })
+              : writeFile('tasks.json', keep))
+
+            try {
+              await rm('tasks.json', { force: true })
+              const { stdout } = await run(process.execPath, ['app.mjs', 'add', '장보기'])
+              assert.match(stdout, /추가: \[ \] 장보기/, '추가했다고 알려야 한다')
+
+              const saved = JSON.parse(await readFile('tasks.json', 'utf8'))
+              assert.equal(saved.at(-1).title, '장보기', '방금 넣은 것이 파일 끝에 있어야 한다')
+              assert.equal(saved.at(-1).done, false, '새 할 일은 아직 안 끝난 상태여야 한다')
+            } finally {
+              await restore()
+            }
+    review_card:
+      front: "파일 쓰기처럼 시간이 걸리는 일이 곧바로 돌려주는 것은?"
+      back: "Promise — 나중에 결과가 올 자리"
+      answer_pattern: "promise|프로미스|나중"
+
+  - id: ch07-s02
+    concept: async-await
+    kind: edit
+    goal: ".then 사슬을 걷어 내고 위에서 아래로 읽히게 만든다"
+    teach: |
+      `.then()` 에는 불편한 점이 있다. 지금은 한 겹이라 괜찮지만, 저장하고 나서 또 읽고,
+      읽고 나서 또 무언가 하려 하면 괄호가 계속 안으로 파고든다.
+      더 나쁜 것은 **`try`/`catch` 가 통하지 않는다** 는 것이다. `.then()` 안의 함수는
+      나중에 따로 불리므로, 감싸 둔 `try` 블록은 그때 이미 끝나 있다.
+
+      `await` 은 'Promise가 끝날 때까지 여기서 기다린다'는 뜻이다.
+
+        const added = addTask(tasks, title)
+        await saveTasks(tasks)
+        console.log(`추가: ${render(added)}`)
+        printAll(tasks)
+
+      위에서 아래로 그냥 읽힌다. 그리고 `try`/`catch` 가 다시 통한다 —
+      저장이 실패하면 `await` 자리에서 던져지고, 감싸고 있던 `catch` 가 그것을 받는다.
+
+      `await` 은 `async` 함수 안에서만 쓸 수 있다. 다만 **모듈 최상위에서는 그냥 쓸 수 있다** —
+      `.mjs` 파일 자체가 모듈이기 때문이다. 그래서 `app.mjs` 는 아무것도 감싸지 않아도 된다.
+
+      모듈 쪽도 `async` 로 바꾼다.
+
+        export async function saveTasks(tasks, file = FILE) {
+          await writeFile(file, JSON.stringify(tasks, null, 2))
+        }
+
+      `async` 를 붙인 함수는 **무엇을 돌려주든 Promise를 돌려준다.** 그래서 부르는 쪽은
+      전과 똑같이 `await` 하면 된다. 안에서 `await` 을 쓸 수 있게 되는 것이 덤이다.
+
+      `done` 가지에도 저장을 넣는다. 완료 처리도 남아야 한다.
+    fade:
+      copy: |
+        export async function saveTasks(tasks, file = FILE) {
+          await writeFile(file, JSON.stringify(tasks, null, 2))
+        }
+      fill: |
+        export ____ function saveTasks(tasks, file = FILE) {
+          ____ writeFile(file, JSON.stringify(tasks, null, 2))
+        }
+      recall: "store 의 저장 함수를 async 로 바꾸고, app 의 add·done 이 .then 없이 저장을 기다린 뒤 결과를 알리게 한다"
+    hints:
+      - ".then 안의 함수는 나중에 따로 불린다. 그래서 그것을 감싼 try/catch 는 소용이 없다."
+      - "app 에서 .then 을 걷어 내고 저장 앞에 기다리는 낱말을 붙인다. done 가지에도 저장을 넣는다."
+      - "await saveTasks(tasks) 로 바꾸고 .then 을 없앤다. lib/store.mjs 는 export async function saveTasks 로 바꾼다."
+    verify:
+      - type: fs
+        label: "app.mjs 가 저장을 기다린다"
+        path: "app.mjs"
+        matches: ['await\s+saveTasks']
+        not_matches: ['\.then\(']
+      - type: fs
+        label: "저장 함수가 async 다"
+        path: "lib/store.mjs"
+        matches: ['async']
+      - type: cmd
+        label: "async 함수는 여전히 Promise 를 돌려준다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { saveTasks } from './lib/store.mjs'
+            import { readFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const file = 'tasks.check.json'
+            await rm(file, { force: true })
+
+            const pending = saveTasks([{ title: '설거지', done: true }], file)
+            assert.ok(
+              pending && typeof pending.then === 'function',
+              'async 함수는 Promise 를 돌려준다 — 부르는 쪽이 기다릴 수 있어야 한다',
+            )
+            await pending
+
+            assert.deepEqual(
+              JSON.parse(await readFile(file, 'utf8')),
+              [{ title: '설거지', done: true }],
+              '기다린 뒤에는 파일이 다 쓰여 있어야 한다',
+            )
+            await rm(file, { force: true })
+      - type: cmd
+        label: "add 도 done 도 파일에 남는다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { readFile, writeFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const keep = await readFile('tasks.json', 'utf8').catch(() => null)
+            const restore = async () => (keep === null
+              ? rm('tasks.json', { force: true })
+              : writeFile('tasks.json', keep))
+
+            try {
+              await rm('tasks.json', { force: true })
+
+              await run(process.execPath, ['app.mjs', 'add', '설거지'])
+              const afterAdd = JSON.parse(await readFile('tasks.json', 'utf8'))
+              assert.equal(afterAdd.at(-1).title, '설거지', 'add 한 것이 파일에 남아야 한다')
+
+              // 아직 읽어 들이지는 않으므로(8장 몫이 아니라 다음 스텝 몫이다),
+              // 완료 처리는 코드에 박힌 시작 목록에 있는 것으로 확인한다.
+              await run(process.execPath, ['app.mjs', 'done', '빨래 개기'])
+              const afterDone = JSON.parse(await readFile('tasks.json', 'utf8'))
+              const target = afterDone.find((task) => task.title === '빨래 개기')
+              assert.ok(target, '완료 처리한 뒤에도 그 할 일은 목록에 있어야 한다')
+              assert.equal(target.done, true, '완료 처리가 파일에 반영돼야 한다')
+            } finally {
+              await restore()
+            }
+    review_card:
+      front: "`.then()` 대신 `await` 을 쓰면 되살아나는 것은?"
+      back: "try/catch. await 자리에서 던져지므로 감싸고 있던 catch 가 받는다"
+      answer_pattern: "try|catch|예외|에러"
+    explain:
+      question: "`.then()` 안에서 난 실패를 바깥의 `try`/`catch` 가 왜 잡지 못하나?"
+      model_answer: |
+        `.then()` 에 넘긴 함수는 그 자리에서 실행되지 않고 나중에 따로 불리기 때문이다.
+        그때는 `try` 블록이 이미 끝나 있어서, 그 함수는 더 이상 `try` 안에서 도는 코드가 아니다.
+        `await` 은 기다리는 동안 흐름을 그 자리에 붙잡아 두므로, 던져진 것이 여전히 `try` 안에서
+        일어난 일이 된다. 그래서 같은 `catch` 로 받을 수 있다.
+      keywords:
+        - term: "나중"
+          nudge: ".then 에 넘긴 함수가 '언제' 실행되는지 짚어 본다."
+        - term: "끝나"
+          nudge: "그 함수가 불릴 때 try 블록은 어떤 상태인지 떠올려 본다."
+
+  - id: ch07-s03
+    concept: fs-promises
+    kind: edit
+    goal: "저장한 목록을 다시 읽어 들인다. 파일이 없는 것은 실패가 아니다"
+    teach: |
+      쓰기만 해서는 반쪽이다. 읽어야 이어진다.
+
+        import { readFile, writeFile } from 'node:fs/promises'
+
+        export async function readTasks(file = FILE) {
+          try {
+            const raw = await readFile(file, 'utf8')
+            return JSON.parse(raw)
+          } catch (error) {
+            if (error.code === 'ENOENT') {
+              return []
+            }
+            throw error
+          }
+        }
+
+      `readFile(file, 'utf8')` 의 두 번째 인자는 '글자로 읽어라'는 뜻이다.
+      빼면 바이트 덩어리가 나온다.
+
+      핵심은 `catch` 쪽이다. **파일이 없는 것은 실패가 아니다.**
+      이 프로그램을 처음 쓰는 사람에게는 `tasks.json` 이 당연히 없다.
+      그때 오류를 내면 아무도 시작할 수 없다. 없으면 **빈 목록으로 시작** 하는 것이 맞다.
+
+      파일이 없을 때 Node가 주는 오류에는 `code` 가 `'ENOENT'` 로 붙어 있다
+      (Error NO ENTry — 그런 항목 없음). 그것만 골라 빈 배열로 바꾸고,
+      **나머지는 다시 던진다.** 권한이 없거나 디스크가 고장 난 것까지 빈 목록으로 삼키면 안 된다.
+
+      6장에서 그은 선이 여기서도 그대로다 — 내가 예상하고 처리하기로 한 것만 처리하고
+      나머지는 올려보낸다.
+
+      이번에도 `app.mjs` 는 아직 고치지 않는다. 모듈만 갖춘다.
+    predict:
+      question: "`readTasks()` 가 파일이 없을 때 오류를 냈다면, 이 프로그램을 처음 쓰는 사람에게 무슨 일이 벌어질까?"
+      answer_pattern: "못|안 ?되|시작|오류|에러|실패"
+      reveal: |
+        아무것도 못 한다. `add` 를 하려 해도 먼저 목록을 읽다가 터지고, `list` 도 마찬가지다.
+        파일을 손으로 만들어 두지 않는 한 프로그램을 시작할 수조차 없다.
+        '아직 아무것도 없음'은 정상적인 첫 상태다. 그것을 실패로 다루면 첫 사용자가 벽을 만난다.
+    fade:
+      copy: |
+        export async function readTasks(file = FILE) {
+          try {
+            const raw = await readFile(file, 'utf8')
+            return JSON.parse(raw)
+          } catch (error) {
+            if (error.code === 'ENOENT') {
+              return []
+            }
+            throw error
+          }
+        }
+      fill: |
+        export async function readTasks(file = FILE) {
+          try {
+            const raw = ____ readFile(file, 'utf8')
+            return JSON.____(raw)
+          } catch (error) {
+            if (error.____ === 'ENOENT') {
+              return ____
+            }
+            throw error
+          }
+        }
+      recall: "store 에 목록을 읽어 오는 함수를 더하되, 파일이 아직 없으면 빈 목록으로 시작하게 한다"
+    hints:
+      - "이 프로그램을 처음 쓰는 사람에게는 파일이 없는 것이 정상이다. 그것을 실패로 다루면 시작할 수 없다."
+      - "readFile 을 try 로 감싸고, 파일이 없을 때 붙는 표식만 골라 빈 배열을 돌려준다. 나머지는 다시 던진다."
+      - "catch (error) 안에서 if (error.code === 'ENOENT') { return [] } 를 두고 그 아래에 throw error 를 둔다."
+    verify:
+      - type: cmd
+        label: "파일이 아직 없으면 빈 목록으로 시작한다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { readTasks } from './lib/store.mjs'
+            import { rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const file = 'tasks.check.json'
+            await rm(file, { force: true })
+
+            const tasks = await readTasks(file)
+            assert.deepEqual(tasks, [], '없는 파일은 실패가 아니라 빈 목록이어야 한다')
+      - type: cmd
+        label: "저장한 것을 그대로 읽어 온다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { readTasks, saveTasks } from './lib/store.mjs'
+            import { rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const file = 'tasks.check.json'
+            await rm(file, { force: true })
+
+            const original = [
+              { title: '우유 사기', done: false },
+              { title: '빨래 개기', done: true },
+            ]
+            await saveTasks(original, file)
+            const loaded = await readTasks(file)
+
+            assert.deepEqual(loaded, original, '저장한 것과 읽어 온 것이 같아야 한다')
+            assert.notEqual(loaded, original, '파일을 거쳐 왔으므로 같은 객체일 수는 없다')
+
+            await rm(file, { force: true })
+      - type: cmd
+        label: "읽기도 Promise 를 돌려준다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { readTasks } from './lib/store.mjs'
+            import assert from 'node:assert/strict'
+
+            const pending = readTasks('tasks.check.json')
+            assert.ok(
+              pending && typeof pending.then === 'function',
+              'readTasks 도 나중에 끝날 일을 돌려줘야 한다',
+            )
+            assert.deepEqual(await pending, [], '없는 파일이면 빈 목록이다')
+    review_card:
+      front: "파일이 없을 때 Node가 주는 오류의 code 값은?"
+      back: "'ENOENT'. 없으면 빈 목록으로 시작하고, 그 밖의 오류는 다시 던진다"
+      answer_pattern: "ENOENT|없"
+
+  - id: ch07-s04
+    concept: error-propagation
+    kind: edit
+    goal: "망가진 파일은 이유를 알 수 있는 실패로 바꿔 던진다"
+    teach: |
+      `tasks.json` 을 열어 중괄호 하나를 지웠다고 해 보자. 지금은 이렇게 터진다.
+
+        SyntaxError: Unexpected end of JSON input
+
+      틀린 말은 아니지만 사용자에게는 아무 소용이 없다. 어느 파일인지도, 무엇을 해야 하는지도 없다.
+      6장에서 만든 이름 붙은 실패로 바꿔 준다.
+
+        import { invalidInput } from './errors.mjs'
+
+        export async function readTasks(file = FILE) {
+          let raw
+          try {
+            raw = await readFile(file, 'utf8')
+          } catch (error) {
+            if (error.code === 'ENOENT') {
+              return []
+            }
+            throw error
+          }
+
+          try {
+            return JSON.parse(raw)
+          } catch {
+            throw invalidInput(`할 일 파일이 망가져 읽을 수 없다: ${file}`)
+          }
+        }
+
+      **`try` 를 둘로 나눈 것** 이 요령이다. 하나로 뭉쳐 두면 `readFile` 의 실패와
+      `JSON.parse` 의 실패가 같은 `catch` 로 들어와 구별할 수 없다.
+      **각 `try` 는 그것이 다룰 줄 아는 실패만 덮는다.** 좁게 감쌀수록 정확해진다.
+
+      `catch { ... }` 처럼 괄호를 생략할 수 있다. 잡은 값을 쓰지 않을 때만 그렇게 한다 —
+      여기서는 원래 메시지가 쓸모없으므로 버린다.
+
+      **async 함수에서 던지면 어떻게 되나.** 그 함수가 돌려준 Promise가 '거부됨' 상태가 된다.
+      부르는 쪽이 `await` 하고 있으면 그 자리에서 던져져 `catch` 로 간다.
+      **`await` 없이 부르면 아무도 그 실패를 받지 않는다** — 프로그램은 태연히 진행하다가
+      나중에 `unhandledRejection` 으로 죽는다. 그래서 Promise를 돌려주는 함수는 반드시 기다린다.
+    fade:
+      copy: |
+        try {
+          return JSON.parse(raw)
+        } catch {
+          throw invalidInput(`할 일 파일이 망가져 읽을 수 없다: ${file}`)
+        }
+      fill: |
+        try {
+          return JSON.parse(raw)
+        } ____ {
+          ____ invalidInput(`할 일 파일이 망가져 읽을 수 없다: ${file}`)
+        }
+      recall: "읽기와 해석을 각각 다른 try 로 감싸고, 망가진 파일은 이름 붙은 실패로 바꿔 던지게 한다"
+    hints:
+      - "지금은 파일을 못 읽은 것과 내용이 망가진 것이 같은 catch 로 들어온다. 둘은 다른 실패다."
+      - "readFile 을 감싼 try 와 JSON.parse 를 감싼 try 를 따로 두고, 해석 실패만 이름 붙은 실패로 바꾼다."
+      - "raw 를 먼저 읽어 두고, 그 뒤 try { return JSON.parse(raw) } catch { throw invalidInput(...) } 를 둔다."
+    verify:
+      - type: cmd
+        label: "망가진 파일은 이름 붙은 실패로 알린다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { readTasks } from './lib/store.mjs'
+            import { writeFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const file = 'tasks.check.json'
+            await writeFile(file, '[{"title": "우유 사기",')
+
+            try {
+              await readTasks(file)
+              assert.fail('망가진 파일을 그냥 넘어갔다')
+            } catch (error) {
+              assert.equal(
+                error.name,
+                'InvalidInputError',
+                `내가 만든 실패로 바꿔 던져야 한다 (받은 이름: ${error.name})`,
+              )
+              assert.match(error.message, /파일/, '어느 파일이 문제인지 알 수 있어야 한다')
+            } finally {
+              await rm(file, { force: true })
+            }
+      - type: cmd
+        label: "없는 파일은 여전히 빈 목록이다 — 망가진 것과 구별한다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { readTasks } from './lib/store.mjs'
+            import { rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const file = 'tasks.check.json'
+            await rm(file, { force: true })
+
+            assert.deepEqual(
+              await readTasks(file),
+              [],
+              '없는 파일까지 실패로 만들면 첫 사용자가 시작할 수 없다',
+            )
+      - type: cmd
+        label: "멀쩡한 파일은 그대로 읽는다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { readTasks, saveTasks } from './lib/store.mjs'
+            import { rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const file = 'tasks.check.json'
+            const original = [{ title: '장보기', done: false }]
+            await saveTasks(original, file)
+
+            assert.deepEqual(await readTasks(file), original, '멀쩡한 파일까지 막으면 안 된다')
+            await rm(file, { force: true })
+      - type: cmd
+        label: "실패는 돌려준 Promise 가 거부되는 형태로 나온다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { readTasks } from './lib/store.mjs'
+            import { writeFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const file = 'tasks.check.json'
+            await writeFile(file, '망가진 내용')
+
+            // 부르기만 하고 기다리지 않으면 던져지지 않는다. 기다려야 받을 수 있다.
+            const pending = readTasks(file)
+            assert.ok(pending && typeof pending.then === 'function', 'Promise 를 돌려줘야 한다')
+            await assert.rejects(
+              () => pending,
+              (error) => error.name === 'InvalidInputError',
+              '기다렸을 때 이름 붙은 실패로 거부돼야 한다',
+            )
+
+            await rm(file, { force: true })
+    review_card:
+      front: "async 함수 안에서 throw 하면 부르는 쪽에는 어떻게 전해지는가?"
+      back: "돌려준 Promise 가 거부된다. await 하고 있어야 그 자리에서 던져져 catch 로 간다"
+      answer_pattern: "거부|reject|promise|await"
+
+  - id: ch07-s05
+    concept: persistent-cli
+    kind: edit
+    boss: true
+    goal: "껐다 켜도 목록이 이어지는 진짜 도구로 만든다"
+    teach: |
+      마지막이다. 힌트는 없다.
+
+      `app.mjs` 에는 아직 시작 목록이 코드에 박혀 있다.
+
+        const tasks = [
+          { title: '우유 사기', done: false },
+          { title: '빨래 개기', done: true },
+        ]
+
+      **이 배열을 지운다.** 목록은 이제 코드가 아니라 파일에서 온다.
+
+      요구사항은 다섯이다.
+
+        1. 시작할 때 `readTasks()` 로 목록을 읽어 온다. 파일이 없으면 빈 목록이다
+        2. `add` 와 `done` 은 바뀐 목록을 `saveTasks(tasks)` 로 저장한 뒤 결과를 알린다
+        3. `list` 는 **저장하지 않는다.** 읽기만 하는 명령이 파일을 건드릴 이유가 없다
+        4. 읽기가 실패하면(파일이 망가졌으면) 스택 트레이스 대신 이유를 알리고 종료 코드 1로 끝낸다
+        5. 6장에서 세운 것은 그대로 지킨다 — 빈 제목은 `추가하지 못했다`,
+           없는 제목은 `그런 할 일이 없다`, 모르는 실패는 다시 던진다
+
+      4번을 어디에 두어야 할지 잠깐 생각한다. `readTasks()` 는 명령을 고르기 **전에** 불린다.
+      어느 명령이든 목록이 필요하기 때문이다. 그러니 그 호출도 감싸야 한다.
+
+      다 되면 직접 확인해 본다. 이번에는 껐다 켜도 남는다.
+
+        node app.mjs add "우유 사기"
+        node app.mjs add "빨래 개기"
+        node app.mjs list            → 두 개가 그대로 있다
+        node app.mjs done "우유 사기"
+        node app.mjs list            → 완료 표시가 남아 있다
+    verify:
+      - type: fs
+        label: "시작 목록이 코드에 박혀 있지 않다"
+        path: "app.mjs"
+        not_matches: ['우유 사기', '빨래 개기']
+      - type: fs
+        label: "목록을 파일에서 읽어 온다"
+        path: "app.mjs"
+        matches: ['await\s+readTasks\s*\(']
+      - type: cmd
+        label: "빈 상태에서 시작해 쌓이고, 껐다 켜도 이어진다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { readFile, writeFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const keep = await readFile('tasks.json', 'utf8').catch(() => null)
+            const restore = async () => (keep === null
+              ? rm('tasks.json', { force: true })
+              : writeFile('tasks.json', keep))
+
+            try {
+              await rm('tasks.json', { force: true })
+
+              await run(process.execPath, ['app.mjs', 'add', '우유 사기'])
+              await run(process.execPath, ['app.mjs', 'add', '빨래 개기'])
+
+              const saved = JSON.parse(await readFile('tasks.json', 'utf8'))
+              assert.deepEqual(
+                saved.map((task) => task.title),
+                ['우유 사기', '빨래 개기'],
+                '따로 실행한 두 번의 add 가 모두 남아 있어야 한다',
+              )
+              assert.deepEqual(saved.map((task) => task.done), [false, false])
+
+              const { stdout } = await run(process.execPath, ['app.mjs', 'list'])
+              assert.match(stdout, /우유 사기/, '다시 켜도 앞서 넣은 것이 보여야 한다')
+              assert.match(stdout, /빨래 개기/)
+            } finally {
+              await restore()
+            }
+      - type: cmd
+        label: "done 이 파일에 반영되고, 지목한 것만 바뀐다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { readFile, writeFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const keep = await readFile('tasks.json', 'utf8').catch(() => null)
+            const restore = async () => (keep === null
+              ? rm('tasks.json', { force: true })
+              : writeFile('tasks.json', keep))
+
+            try {
+              await writeFile('tasks.json', JSON.stringify([
+                { title: '우유 사기', done: false },
+                { title: '빨래 개기', done: false },
+              ]))
+
+              await run(process.execPath, ['app.mjs', 'done', '빨래 개기'])
+
+              const saved = JSON.parse(await readFile('tasks.json', 'utf8'))
+              assert.equal(saved[1].done, true, '지목한 것이 완료로 저장돼야 한다')
+              assert.equal(saved[0].done, false, '지목하지 않은 것은 그대로여야 한다')
+            } finally {
+              await restore()
+            }
+      - type: cmd
+        label: "list 는 파일을 건드리지 않는다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { readFile, writeFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const keep = await readFile('tasks.json', 'utf8').catch(() => null)
+            const restore = async () => (keep === null
+              ? rm('tasks.json', { force: true })
+              : writeFile('tasks.json', keep))
+
+            try {
+              // 일부러 사람이 손으로 쓴 것 같은 모양으로 둔다.
+              const before = '[{"title":"장보기","done":false}]'
+              await writeFile('tasks.json', before)
+
+              await run(process.execPath, ['app.mjs', 'list'])
+
+              const after = await readFile('tasks.json', 'utf8')
+              assert.equal(after, before, '읽기만 하는 명령이 파일을 다시 써서는 안 된다')
+            } finally {
+              await restore()
+            }
+      - type: cmd
+        label: "망가진 파일은 스택 없이 이유를 알리고 실패로 끝낸다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { readFile, writeFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const keep = await readFile('tasks.json', 'utf8').catch(() => null)
+            const restore = async () => (keep === null
+              ? rm('tasks.json', { force: true })
+              : writeFile('tasks.json', keep))
+
+            try {
+              await writeFile('tasks.json', '[{"title": "우유 사기",')
+
+              const result = await run(process.execPath, ['app.mjs', 'list']).catch((error) => error)
+              const output = `${result.stdout ?? ''}${result.stderr ?? ''}`
+
+              assert.equal(result.code, 1, '망가진 파일이면 종료 코드 1 로 끝나야 한다')
+              assert.doesNotMatch(output, /^\s+at\s/m, '사용자에게 스택 트레이스를 보이면 안 된다')
+              assert.match(output, /파일/, '무엇이 잘못됐는지 알려 줘야 한다')
+            } finally {
+              await restore()
+            }
+      - type: cmd
+        label: "빈 제목은 여전히 막힌다"
+        run:
+          - node
+          - --input-type=module
+          - -e
+          - |
+            import { execFile } from 'node:child_process'
+            import { promisify } from 'node:util'
+            import { readFile, writeFile, rm } from 'node:fs/promises'
+            import assert from 'node:assert/strict'
+
+            const run = promisify(execFile)
+            const keep = await readFile('tasks.json', 'utf8').catch(() => null)
+            const restore = async () => (keep === null
+              ? rm('tasks.json', { force: true })
+              : writeFile('tasks.json', keep))
+
+            try {
+              await rm('tasks.json', { force: true })
+
+              const result = await run(process.execPath, ['app.mjs', 'add']).catch((error) => error)
+              const output = `${result.stdout ?? ''}${result.stderr ?? ''}`
+
+              assert.equal(result.code, 1, '빈 제목은 실패로 끝나야 한다')
+              assert.match(output, /추가하지 못했다/, '6장에서 세운 안내가 그대로여야 한다')
+              assert.doesNotMatch(output, /^\s+at\s/m, '스택 트레이스를 보이면 안 된다')
+
+              const stillMissing = await readFile('tasks.json', 'utf8').catch(() => null)
+              assert.equal(stillMissing, null, '거부했으면 파일을 만들지도 말아야 한다')
+            } finally {
+              await restore()
+            }
+    review_card:
+      front: "읽기만 하는 명령(list)이 파일을 다시 쓰면 무엇이 나쁜가?"
+      back: "바꾸지 않기로 한 것을 건드린다. 파일이 망가질 위험과 쓸데없는 쓰기가 생긴다"
+      answer_pattern: "안 ?바|건드|위험|쓸데|필요 ?없"
+    explain:
+      question: "화면 출력이 아니라 `tasks.json` 의 내용으로 판정하면 무엇이 확실해지나?"
+      model_answer: |
+        말이 아니라 결과를 보게 된다. "추가: [ ] 장보기" 는 저장에 실패해도 찍힐 수 있는 문장이다.
+        파일을 열어 확인하면 그 문장이 사실인지 아닌지가 드러난다.
+        프로그램을 검사할 때 늘 물어야 하는 것이 이것이다 — 이 검사는 프로그램의 '주장'을 보고 있나,
+        아니면 '상태'를 보고 있나. 상태를 보는 검사만이 거짓말에 속지 않는다.
+      keywords:
+        - term: "상태"
+          nudge: "화면에 찍힌 문장과 실제로 저장된 것이 어긋날 수 있는지 생각해 본다."
+        - term: "증거"
+          nudge: "무엇을 보아야 '정말 됐다'고 말할 수 있는지 짚어 본다."

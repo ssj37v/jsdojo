@@ -1,4 +1,5 @@
-// git 상황 연출. 학습자 저장소를 변형하는 유일한 모듈이므로 조작 범위를 좁게 유지한다(R02).
+// 상황 연출. 학습자 저장소를 변형하는 유일한 모듈이므로 조작 범위를 좁게 유지한다(R02).
+// 두 갈래가 있다 — git 사고를 재현하는 것과, 스텝의 전제가 되는 파일을 놓아 주는 것.
 //
 // 원격은 GitHub가 아니라 .dojo/remote.git 이라는 로컬 bare 저장소다.
 // 계정도 네트워크도 필요 없고, 충돌·되돌리기 같은 사고를 마음껏 재현하고 되돌릴 수 있다.
@@ -6,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { FAKE_REMOTE_DIR, ROOT, WORKSPACE_DIR } from './config.mjs';
-import { isInside } from './paths.mjs';
+import { isInside, resolveInside } from './paths.mjs';
 import { runProcess } from './verify/run-process.mjs';
 
 const TEAMMATE = { name: 'Mina (팀 동료)', email: 'mina@example.com' };
@@ -28,6 +29,9 @@ export const SCENARIOS = {
       message: options.message,
       branch: options.branch ?? 'main',
     }),
+
+  /** 리팩터링할 레거시 코드처럼, 스텝의 전제가 되는 파일을 workspace에 놓아 준다. */
+  seed_files: (context, options) => seedFiles({ ...context, files: options.files }),
 };
 
 /**
@@ -56,6 +60,43 @@ function assertManaged(target, base, label) {
     throw new Error(`${label}가 관리 범위 밖이다: ${resolved}`);
   }
   return resolved;
+}
+
+/**
+ * 스텝의 전제가 되는 파일을 workspace에 놓는다.
+ *
+ * 학습자가 이미 가진 파일은 **절대 덮어쓰지 않는다**(R02). 있으면 건너뛰고 그 사실을 돌려주므로,
+ * 손으로 쌓아 올린 코드가 상황 연출에 밀려 사라지는 일이 없다.
+ * 심는 파일은 커리큘럼이 새로 도입하는 경로여야 한다.
+ *
+ * @returns {{written:string[], skipped:string[]}}
+ */
+export function seedFiles({ workspaceDir = WORKSPACE_DIR, baseDir = ROOT, files } = {}) {
+  const workspace = assertManaged(workspaceDir, baseDir, 'workspace');
+  if (!Array.isArray(files) || files.length === 0) {
+    throw new Error('seed_files에는 놓을 파일 목록(files)이 필요하다');
+  }
+
+  // 경로를 전부 먼저 해석한다. 하나라도 수상하면 한 파일도 놓지 않는다 — 절반만 심긴 상태를 만들지 않는다.
+  const planned = files.map((entry) => {
+    if (!entry || typeof entry.path !== 'string' || typeof entry.content !== 'string') {
+      throw new Error('seed_files의 각 항목에는 path와 content가 필요하다');
+    }
+    return { relative: entry.path, target: resolveInside(workspace, entry.path), content: entry.content };
+  });
+
+  const written = [];
+  const skipped = [];
+  for (const { relative, target, content } of planned) {
+    if (fs.existsSync(target)) {
+      skipped.push(relative);
+      continue;
+    }
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content, 'utf8');
+    written.push(relative);
+  }
+  return { written, skipped };
 }
 
 /** 가짜 원격을 만들고 workspace의 origin으로 등록한다. 이미 있으면 그대로 둔다. */

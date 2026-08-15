@@ -1,0 +1,531 @@
+id: ch02
+title: "2장 · 함수로 묶는다"
+goal: "터미널에서 인자를 받아 할 일 한 줄을 만들어 내는 작은 명령줄 프로그램을 손으로 만든다"
+intro: |
+  1장에서는 코드를 파일에 적고 실행하는 순환을 익혔다. 이제 그 위에 진짜 프로그램을 올린다.
+
+  앞으로 열한 장 내내 키워 갈 것은 하나다 — '할 일 관리 CLI'. 터미널에서
+  `node app.mjs add "우유 사기"` 라고 치면 할 일이 쌓이는 프로그램이다.
+  목록도 저장도 아직 없다. 이 장에서는 그 앞의 앞, **할 일 한 줄을 만들어 내는 일**만 한다.
+
+  그러려면 먼저 '이름 붙은 작업 덩어리'가 필요하다. 그것이 함수다.
+  같은 일을 두 번 적고 있다면 함수를 만들 때가 된 것이다.
+
+steps:
+  - id: ch02-s01
+    concept: function-declaration
+    kind: edit
+    goal: "할 일 한 줄을 찍어 주는 함수를 만들어 두 번 부른다"
+    teach: |
+      함수는 '이름 붙은 작업 덩어리'다. 한 번 만들어 두면 이름만 불러 몇 번이고 다시 쓴다.
+
+        function 이름(받을값) {
+          ...하는 일...
+        }
+
+      괄호 안의 `받을값` 을 **매개변수** 라고 한다. 부를 때 준 값이 그 이름으로 들어온다.
+
+      `workspace/app.mjs` 를 새로 만든다. 1장의 `hello.mjs` 는 그대로 둔다 — 지우지 않는다.
+      할 일 제목을 받아 `- 제목` 꼴로 찍는 `formatTask` 를 만들고, 서로 다른 제목으로 **두 번** 부른다.
+
+        function formatTask(title) {
+          console.log(`- ${title}`)
+        }
+
+        formatTask('우유 사기')
+        formatTask('빨래 개기')
+
+      두 번 부르는 것이 핵심이다. 함수를 만드는 이유가 바로 그것이기 때문이다.
+
+      다 적었으면 workspace 폴더에서 실행한다.
+
+        node app.mjs
+    fade:
+      copy: |
+        function formatTask(title) {
+          console.log(`- ${title}`)
+        }
+
+        formatTask('우유 사기')
+        formatTask('빨래 개기')
+      fill: |
+        ____ formatTask(____) {
+          console.log(`- ${title}`)
+        }
+
+        formatTask('우유 사기')
+        formatTask('빨래 개기')
+      recall: "제목을 받아 `- 제목` 꼴로 찍는 함수를 만들고, 서로 다른 제목으로 두 번 부른다"
+    hints:
+      - "같은 문장을 제목만 바꿔 두 번 적고 있다면, 달라지는 그 부분이 매개변수가 된다."
+      - "workspace/app.mjs 위쪽에 함수를 선언하고, 아래에서 두 번 호출한다."
+      - "function formatTask(title) { console.log(`- ${title}`) } 를 적고 formatTask('우유 사기') 와 formatTask('빨래 개기') 를 부른다."
+    verify:
+      - type: fs
+        label: "app.mjs 에 formatTask 함수를 선언했다"
+        path: "app.mjs"
+        matches: ['function\s+formatTask\s*\(']
+      - type: cmd
+        label: "실행하면 두 할 일이 모두 찍힌다"
+        run: ["node", "app.mjs"]
+        expect_output: '- 우유 사기[\s\S]*- 빨래 개기'
+    review_card:
+      front: "함수를 부를 때 준 값이 들어오는, 괄호 안의 이름을 무엇이라 하는가?"
+      back: "매개변수 (parameter)"
+      answer_pattern: "매개변수|파라미터|parameter"
+
+  - id: ch02-s02
+    concept: return-value
+    kind: edit
+    goal: "함수가 찍는 대신 값을 돌려주게 바꾼다"
+    teach: |
+      지금 `formatTask` 는 만든 문장을 곧바로 터미널에 찍어 버린다. 그래서 그 문장으로
+      다른 것을 할 수가 없다 — 파일에 저장할 수도, 앞에 번호를 붙일 수도 없다.
+
+      함수는 **값을 돌려주는** 쪽이 훨씬 쓸모 있다. 돌려줄 때는 `return` 을 쓴다.
+
+        function formatTask(title) {
+          return `- ${title}`
+        }
+
+      `return` 을 만나면 함수는 그 자리에서 끝나고, 그 값이 호출한 자리에 남는다.
+      찍는 일은 부른 쪽이 한다.
+
+        console.log(formatTask('우유 사기'))
+        console.log(formatTask('빨래 개기'))
+
+      만드는 일과 찍는 일을 갈라 놓는 것 — 이것이 앞으로 계속 쓰게 될 사고방식이다.
+    predict:
+      question: "`return` 이 없는 함수를 `console.log(...)` 로 감싸 찍으면 무엇이 나올까?"
+      answer_pattern: "undefined|언디파인|아무것도|없"
+      reveal: |
+        `undefined` 가 찍힌다. 자바스크립트에서 아무것도 돌려주지 않는 함수는 `undefined` 를 돌려준다.
+        그래서 화면에 `- 우유 사기` 와 `undefined` 가 함께 나온다면, 함수가 찍기도 하고
+        (아무것도) 돌려주기도 한 상태라는 뜻이다. return으로 바꾸다 만 것이다.
+    fade:
+      copy: |
+        function formatTask(title) {
+          return `- ${title}`
+        }
+
+        console.log(formatTask('우유 사기'))
+        console.log(formatTask('빨래 개기'))
+      fill: |
+        function formatTask(title) {
+          ____ `- ${title}`
+        }
+
+        console.log(____('우유 사기'))
+        console.log(____('빨래 개기'))
+      recall: "함수는 문장을 돌려주기만 하고, 찍는 일은 부른 쪽이 하게 고친다"
+    hints:
+      - "화면에 undefined 가 함께 나온다면, 함수가 아직 찍기도 하고 있다는 뜻이다."
+      - "함수 안의 console.log 를 return 으로 바꾸고, 호출하는 쪽을 console.log 로 감싼다."
+      - "return `- ${title}` 로 바꾸고 아래에서 console.log(formatTask('우유 사기')) 처럼 부른다."
+    verify:
+      - type: fs
+        label: "함수가 값을 돌려준다"
+        path: "app.mjs"
+        matches: ['return\s']
+      - type: cmd
+        label: "두 할 일이 찍히고, undefined 는 나오지 않는다"
+        run: ["node", "app.mjs"]
+        expect_output: '- 우유 사기[\s\S]*- 빨래 개기'
+        reject_output: 'undefined'
+    review_card:
+      front: "함수가 값을 돌려줄 때 쓰는 키워드는?"
+      back: "return"
+      answer_pattern: "return"
+    explain:
+      question: "함수가 직접 찍어 버리는 것과, 값을 돌려주고 부른 쪽이 찍는 것 — 무엇이 달라지나?"
+      model_answer: |
+        쓸 수 있는 곳이 달라진다. 직접 찍는 함수는 '터미널에 찍는다'는 용도 하나에 묶인다.
+        값을 돌려주는 함수는 그 값을 찍을 수도, 파일에 쓸 수도, 다른 문장에 끼워 넣을 수도 있다.
+        만드는 일과 내보내는 일을 갈라 놓으면 만드는 쪽을 그대로 둔 채 내보내는 방법만 바꿀 수 있다.
+      keywords:
+        - term: "돌려"
+          nudge: "돌려받은 값으로 그다음에 무엇을 더 할 수 있는지 떠올려 본다."
+        - term: "찍"
+          nudge: "'찍는 일'을 누가 하느냐가 바뀌었다는 점을 짚어 본다."
+
+  - id: ch02-s03
+    concept: conditional
+    kind: edit
+    goal: "완료 여부에 따라 다른 모양을 돌려주게 한다"
+    teach: |
+      할 일에는 두 가지 상태가 있다 — 아직 안 한 것과 끝낸 것. 흔히 이렇게 적는다.
+
+        [ ] 우유 사기      아직
+        [x] 빨래 개기      끝냄
+
+      상황에 따라 다르게 동작하려면 `if` 를 쓴다.
+
+        if (조건) {
+          ...조건이 참일 때...
+        } else {
+          ...아닐 때...
+        }
+
+      `formatTask` 가 완료 여부도 함께 받게 하고, 그에 따라 다른 문장을 돌려주게 고친다.
+
+        function formatTask(title, done) {
+          if (done) {
+            return `[x] ${title}`
+          } else {
+            return `[ ] ${title}`
+          }
+        }
+
+      매개변수는 쉼표로 나열하면 여러 개를 받을 수 있다. 부를 때도 같은 순서로 준다.
+
+        console.log(formatTask('우유 사기', true))
+        console.log(formatTask('빨래 개기', false))
+
+      `true` 와 `false` 는 참·거짓을 나타내는 값이다. 따옴표를 붙이지 않는다.
+    fade:
+      copy: |
+        function formatTask(title, done) {
+          if (done) {
+            return `[x] ${title}`
+          } else {
+            return `[ ] ${title}`
+          }
+        }
+
+        console.log(formatTask('우유 사기', true))
+        console.log(formatTask('빨래 개기', false))
+      fill: |
+        function formatTask(title, ____) {
+          ____ (done) {
+            return `[x] ${title}`
+          } ____ {
+            return `[ ] ${title}`
+          }
+        }
+
+        console.log(formatTask('우유 사기', true))
+        console.log(formatTask('빨래 개기', false))
+      recall: "완료 여부를 함께 받아, 끝낸 것은 [x] 로 아직인 것은 [ ] 로 돌려주게 고친다"
+    hints:
+      - "달라져야 하는 것은 대괄호 안의 한 글자뿐이다. 나머지는 같다."
+      - "formatTask 가 두 번째 값을 받게 하고, 함수 안에서 if 로 갈라 준다."
+      - "function formatTask(title, done) { if (done) { return `[x] ${title}` } else { return `[ ] ${title}` } } 로 고친다."
+    verify:
+      - type: fs
+        label: "if 로 갈라 처리한다"
+        path: "app.mjs"
+        matches: ['\bif\s*\(']
+      - type: cmd
+        label: "끝낸 할 일은 [x] 로 나온다"
+        run: ["node", "app.mjs"]
+        expect_output: '\[x\] 우유 사기'
+      - type: cmd
+        label: "아직인 할 일은 [ ] 로 나온다"
+        run: ["node", "app.mjs"]
+        expect_output: '\[ \] 빨래 개기'
+    review_card:
+      front: "참일 때와 아닐 때를 갈라 실행하는 문법은?"
+      back: "if / else"
+      answer_pattern: "if"
+
+  - id: ch02-s04
+    concept: parameter-default
+    kind: edit
+    goal: "완료 여부를 생략해도 되게 만든다"
+    teach: |
+      새로 만드는 할 일은 거의 항상 '아직 안 한 것'이다. 그런데 지금은 부를 때마다
+      `false` 를 일일이 적어 줘야 한다. 흔한 쪽을 매번 적게 하는 설계는 좋지 않다.
+
+      매개변수에는 **기본값** 을 줄 수 있다. 부를 때 그 자리를 비우면 기본값이 쓰인다.
+
+        function formatTask(title, done = false) {
+          ...
+        }
+
+      이제 이렇게 쓸 수 있다.
+
+        console.log(formatTask('우유 사기', true))   → [x] 우유 사기
+        console.log(formatTask('빨래 개기'))          → [ ] 빨래 개기
+
+      두 번째 호출에서 `done` 자리를 비웠으므로 `false` 가 들어간다.
+      함수 본문은 손대지 않는다 — 고치는 것은 매개변수 목록 한 곳뿐이다.
+    fade:
+      copy: |
+        function formatTask(title, done = false) {
+          if (done) {
+            return `[x] ${title}`
+          } else {
+            return `[ ] ${title}`
+          }
+        }
+
+        console.log(formatTask('우유 사기', true))
+        console.log(formatTask('빨래 개기'))
+      fill: |
+        function formatTask(title, done ____ ____) {
+          if (done) {
+            return `[x] ${title}`
+          } else {
+            return `[ ] ${title}`
+          }
+        }
+
+        console.log(formatTask('우유 사기', true))
+        console.log(formatTask('빨래 개기'))
+      recall: "완료 여부를 생략하면 '아직 안 함'이 되도록 기본값을 주고, 호출 하나에서 그 자리를 비운다"
+    hints:
+      - "흔한 쪽을 매번 적게 하지 않으려면, 비워 뒀을 때 무엇이 될지를 함수가 알고 있으면 된다."
+      - "매개변수 목록의 done 뒤에 기본값을 적는다. 호출부 하나에서는 두 번째 인자를 지운다."
+      - "function formatTask(title, done = false) 로 고치고, 아래를 console.log(formatTask('빨래 개기')) 로 바꾼다."
+    verify:
+      - type: fs
+        label: "매개변수에 기본값을 줬다"
+        path: "app.mjs"
+        matches: ['\(\s*\w+\s*,\s*\w+\s*=\s*\S']
+      - type: cmd
+        label: "완료 여부를 생략해도 [ ] 로 나온다"
+        run: ["node", "app.mjs"]
+        expect_output: '\[ \] 빨래 개기'
+        reject_output: 'undefined'
+      - type: cmd
+        label: "끝낸 할 일은 여전히 [x] 로 나온다"
+        run: ["node", "app.mjs"]
+        expect_output: '\[x\] 우유 사기'
+    review_card:
+      front: "인자를 생략했을 때 대신 쓰이도록 매개변수에 주는 값은?"
+      back: "기본값 (default parameter) — function f(a, b = false)"
+      answer_pattern: "기본값|디폴트|default"
+
+  - id: ch02-s05
+    concept: process-argv
+    kind: edit
+    goal: "터미널에서 준 제목을 받아 쓴다"
+    teach: |
+      지금까지 제목은 코드 안에 박혀 있었다. 제목을 바꾸려면 파일을 고쳐야 한다.
+      진짜 명령줄 프로그램은 그러지 않는다 — **실행할 때** 값을 받는다.
+
+        node app.mjs "우유 사기"
+
+      이렇게 준 값들은 `process.argv` 라는 배열에 담겨 들어온다.
+
+        process.argv[0]   node 실행 파일의 경로
+        process.argv[1]   지금 실행 중인 파일의 경로
+        process.argv[2]   내가 준 첫 번째 값     ← 여기부터가 쓸모 있다
+
+      앞의 두 자리는 Node가 채워 넣는다. 그래서 우리가 받는 값은 항상 `[2]` 부터다.
+
+        const title = process.argv[2]
+        console.log(formatTask(title))
+
+      함수는 그대로 두고, 아래쪽 두 줄의 호출만 이 한 쌍으로 바꾼다.
+      제목에 공백이 있으면 따옴표로 감싸 한 덩어리로 넘긴다.
+
+        node app.mjs "우유 사기"
+        node app.mjs "빨래 개기"
+
+      같은 파일이 다른 결과를 낸다. 프로그램이 처음으로 '입력'을 갖게 된 것이다.
+    predict:
+      question: "`node app.mjs \"우유 사기\"` 로 실행했을 때, 내가 준 제목은 process.argv의 몇 번째에 들어 있을까?"
+      answer_pattern: "2|두|셋|세 ?번"
+      reveal: |
+        `process.argv[2]` 다. 0번에는 node 실행 파일 경로가, 1번에는 실행 중인 app.mjs의 경로가
+        Node에 의해 미리 채워져 있다. 직접 찍어 보면 눈으로 확인할 수 있다.
+        console.log(process.argv) 를 잠깐 넣어 보고 지워도 좋다.
+    fade:
+      copy: |
+        const title = process.argv[2]
+        console.log(formatTask(title))
+      fill: |
+        const title = ____[2]
+        console.log(formatTask(____))
+      recall: "코드에 박아 둔 제목 대신, 실행할 때 받은 값을 써서 한 줄을 찍는다"
+    hints:
+      - "제목을 바꾸려고 파일을 고치고 있다면, 그 값은 코드가 아니라 입력이어야 한다."
+      - "app.mjs 아래쪽의 console.log 두 줄을 지우고, process.argv 에서 값을 꺼내 한 번만 찍는다."
+      - "const title = process.argv[2] 를 적고 console.log(formatTask(title)) 로 찍는다."
+    verify:
+      - type: fs
+        label: "process.argv 에서 값을 꺼낸다"
+        path: "app.mjs"
+        matches: ['process\.argv']
+      - type: cmd
+        label: "준 제목이 그대로 나온다"
+        run: ["node", "app.mjs", "우유 사기"]
+        expect_output: '\[ \] 우유 사기'
+      - type: cmd
+        label: "다른 제목을 주면 다른 결과가 나온다"
+        run: ["node", "app.mjs", "빨래 개기"]
+        expect_output: '\[ \] 빨래 개기'
+        reject_output: '우유 사기'
+    review_card:
+      front: "터미널에서 준 첫 번째 값은 process.argv의 몇 번 자리에 들어 있는가?"
+      back: "process.argv[2] — 0은 node 경로, 1은 실행 파일 경로"
+      answer_pattern: "2|\\[2\\]"
+
+  - id: ch02-s06
+    concept: process-exit
+    kind: edit
+    goal: "제목을 주지 않으면 사용법을 알리고 실패로 끝낸다"
+    teach: |
+      제목을 주지 않고 실행해 보면 `[ ] undefined` 가 찍힌다. 프로그램이 잘못된 입력을
+      아무렇지 않게 받아들이고 있다는 뜻이다.
+
+      명령줄 프로그램에는 규칙이 있다. **끝날 때 성공인지 실패인지를 숫자로 알린다.**
+
+        0        잘 끝났다
+        0이 아님   문제가 있었다
+
+      이 숫자를 **종료 코드** 라고 한다. 사람 눈에는 보이지 않지만, 다른 프로그램이 이 값을 보고
+      이어서 실행할지 멈출지를 정한다. 도장의 검사도 이 값을 본다.
+
+      직접 정할 때는 이렇게 쓴다.
+
+        process.exit(1)
+
+      제목이 없으면 사용법을 알리고 실패로 끝내게 고친다.
+
+        const USAGE = '사용법: node app.mjs <할 일 제목>'
+
+        const title = process.argv[2]
+        if (title) {
+          console.log(formatTask(title))
+        } else {
+          console.log(USAGE)
+          process.exit(1)
+        }
+
+      `if (title)` 은 '제목이 있으면'으로 읽는다. 값이 없을 때(`undefined`)는 거짓으로 다뤄진다.
+
+      확인해 본다. 종료 코드는 방금 끝난 명령에 대해서만 볼 수 있다.
+
+        node app.mjs             → 사용법이 찍힌다
+        echo $LASTEXITCODE       → 1  (PowerShell)
+        echo $?                  → 1  (bash·zsh)
+    fade:
+      copy: |
+        const USAGE = '사용법: node app.mjs <할 일 제목>'
+
+        const title = process.argv[2]
+        if (title) {
+          console.log(formatTask(title))
+        } else {
+          console.log(USAGE)
+          process.exit(1)
+        }
+      fill: |
+        const USAGE = '사용법: node app.mjs <할 일 제목>'
+
+        const title = process.argv[2]
+        if (____) {
+          console.log(formatTask(title))
+        } else {
+          console.log(USAGE)
+          process.____(____)
+        }
+      recall: "제목이 있으면 할 일을 찍고, 없으면 사용법을 알린 뒤 실패 종료 코드로 끝낸다"
+    hints:
+      - "제목이 없을 때도 프로그램이 성공한 척 끝나고 있다. 끝나는 방식 자체를 갈라야 한다."
+      - "process.argv[2] 를 꺼낸 뒤 if 로 갈라, 없는 쪽에서 사용법을 찍고 process.exit 을 부른다."
+      - "else 가지에 console.log(USAGE) 와 process.exit(1) 을 넣는다. USAGE 문구에 '사용법' 이라는 말이 들어가야 한다."
+    verify:
+      - type: cmd
+        label: "제목을 주면 그대로 성공한다"
+        run: ["node", "app.mjs", "우유 사기"]
+        expect_output: '\[ \] 우유 사기'
+      - type: cmd
+        label: "제목이 없으면 사용법을 알린다"
+        run: ["node", "app.mjs"]
+        expect_exit: 1
+        expect_output: '사용법'
+      - type: cmd
+        label: "제목이 없을 때 undefined 를 찍지 않는다"
+        run: ["node", "app.mjs"]
+        expect_exit: 1
+        reject_output: 'undefined'
+    review_card:
+      front: "명령줄 프로그램이 '잘 끝났다'를 알리는 종료 코드는 몇인가?"
+      back: "0. 0이 아닌 값은 문제가 있었다는 뜻이다"
+      answer_pattern: "0|영"
+    explain:
+      question: "사용법을 찍었으면 사람은 이미 알아차렸는데, 굳이 종료 코드까지 1로 두는 이유는 무엇일까?"
+      model_answer: |
+        읽는 것이 사람만이 아니기 때문이다. 스크립트나 다른 프로그램이 이 명령을 부를 때는 화면 글자를
+        읽지 않고 종료 코드만 본다. 실패했는데 0으로 끝나면, 부른 쪽은 잘된 줄 알고 다음 단계로 넘어간다.
+        도장의 검사도 같은 이유로 종료 코드를 본다 — 말이 아니라 신호로 판단한다.
+      keywords:
+        - term: "다른"
+          nudge: "이 프로그램을 사람이 아닌 다른 프로그램이 부른다면 무엇을 보고 판단할지 생각해 본다."
+        - term: "실패"
+          nudge: "실패가 성공처럼 보이면 그다음에 무슨 일이 벌어지는지 짚어 본다."
+
+  - id: ch02-s07
+    concept: todo-cli-basic
+    kind: edit
+    boss: true
+    goal: "add / done 두 명령을 받는 할 일 CLI를 완성한다"
+    teach: |
+      이 장에서 익힌 것을 모아 하나로 만든다. 힌트는 없다. 지금까지 쓴 것으로 충분하다.
+
+      `app.mjs` 가 **명령** 과 **제목** 을 함께 받게 한다.
+
+        node app.mjs add "우유 사기"     → 추가: [ ] 우유 사기
+        node app.mjs done "빨래 개기"    → 완료: [x] 빨래 개기
+        node app.mjs                     → 사용법을 알리고 종료 코드 1
+        node app.mjs 지우기 "우유 사기"   → 사용법을 알리고 종료 코드 1
+
+      요구사항은 넷이다.
+
+        1. process.argv[2] 를 명령으로, process.argv[3] 을 제목으로 받는다
+        2. 명령이 add 면 `추가: ` 를 앞에 붙여 아직 안 한 모양으로 찍는다
+        3. 명령이 done 이면 `완료: ` 를 앞에 붙여 끝낸 모양으로 찍는다
+        4. 그 밖의 경우(명령이 없거나·모르는 명령이거나·제목이 없거나)에는
+           사용법을 찍고 종료 코드 1로 끝낸다
+
+      `formatTask` 는 손대지 않는다. 이미 두 모양을 다 만들 줄 안다 — 부르는 쪽만 정하면 된다.
+
+      두 값이 모두 맞아야 하는 조건은 `&&` 로 잇는다. `if (command === 'add' && title)` 은
+      '명령이 add 이고 제목도 있으면'으로 읽는다. `===` 는 '같은가'를 묻는 비교다.
+    verify:
+      - type: fs
+        label: "명령과 제목을 각각 받는다"
+        path: "app.mjs"
+        matches: ['process\.argv\[2\]', 'process\.argv\[3\]']
+      - type: cmd
+        label: "add 는 아직 안 한 모양으로 추가한다"
+        run: ["node", "app.mjs", "add", "우유 사기"]
+        expect_output: '추가: \[ \] 우유 사기'
+      - type: cmd
+        label: "done 은 끝낸 모양으로 찍는다"
+        run: ["node", "app.mjs", "done", "빨래 개기"]
+        expect_output: '완료: \[x\] 빨래 개기'
+        reject_output: '우유 사기'
+      - type: cmd
+        label: "명령이 없으면 사용법을 알리고 실패로 끝낸다"
+        run: ["node", "app.mjs"]
+        expect_exit: 1
+        expect_output: '사용법'
+      - type: cmd
+        label: "모르는 명령도 실패로 끝낸다"
+        run: ["node", "app.mjs", "지우기", "우유 사기"]
+        expect_exit: 1
+        expect_output: '사용법'
+      - type: cmd
+        label: "명령만 있고 제목이 없어도 실패로 끝낸다"
+        run: ["node", "app.mjs", "add"]
+        expect_exit: 1
+        expect_output: '사용법'
+    review_card:
+      front: "두 조건이 모두 참일 때만 통과시키려면 무엇으로 잇는가?"
+      back: "&& (그리고)"
+      answer_pattern: "&&|and|그리고"
+    explain:
+      question: "`formatTask` 는 이번 스텝에서 한 글자도 고치지 않았다. 왜 고칠 필요가 없었을까?"
+      model_answer: |
+        하는 일이 하나로 좁혀져 있었기 때문이다. formatTask는 '할 일 한 줄을 어떤 모양으로 쓸지'만 알고,
+        명령이 무엇인지·인자를 어디서 받는지는 모른다. 그래서 그 바깥이 아무리 바뀌어도 영향을 받지 않는다.
+        함수 하나가 한 가지만 하게 두면 이런 일이 자주 일어난다 — 새 기능이 기존 코드를 건드리지 않고 붙는다.
+      keywords:
+        - term: "하나"
+          nudge: "formatTask가 '모르는 것'이 무엇인지 나열해 보면 이유가 드러난다."
+        - term: "바깥"
+          nudge: "무엇이 바뀌었고 무엇이 그대로였는지를 갈라 적어 본다."

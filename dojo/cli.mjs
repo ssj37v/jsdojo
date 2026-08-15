@@ -101,7 +101,7 @@ async function restart(progress) {
           ? `${WORKSPACE_DIR}\n  → 파일 ${size.files.toLocaleString()}개, ${(size.bytes / 1024 / 1024).toFixed(0)} MB`
           : `${WORKSPACE_DIR} (아직 없다)`,
         `${PROGRESS_FILE}\n  → 통과한 스텝 ${progress.completedSteps.length}개`,
-        `${FAKE_REMOTE_DIR} (7장 연습용 원격)`,
+        `${FAKE_REMOTE_DIR} (git 협업 연습용 원격)`,
       ].join('\n\n'),
     ),
   );
