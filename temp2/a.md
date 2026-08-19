@@ -1,0 +1,32 @@
+외부 프레임워크(React/Vue 등) 없이 순수 Vanilla JS만으로 동작하는 경량 SPA 코어 유틸리티 모듈(가칭: `AppCore`)을 single file로 작성해 줘.
+
+    [1. 기술 스택 및 제약 조건]                                                                                                                                                                                                   
+    - 외부 의존성 0 (Zero-Dependency)                                                                                                                                                                                             
+    - IIFE (즉시 실행 함수) 패턴을 사용하여 전역 네임스페이스(`window.__APP_CORE__`) 단 하나에만 안전하게 바인딩할 것                                                                                                             
+    - 스크립트 중복 로드 방지 가드(Guard) 로직 포함할 것                                                                                                                                                                          
+                                                                                                                                                                                                                                  
+    [2. 핵심 모듈 구성 요구사항]                                                                                                                                                                                                  
+    다음 5가지 서브 시스템을 하나의 객체 구조로 묶어서 제공해 줘:                                                                                                                                                                 
+                                                                                                                                                                                                                                  
+    1. `app.dom`:                                                                                                                                                                                                                 
+       - selector 기반 DOM 선택 유틸리티                                                                                                                                                                                          
+       - MutationObserver를 활용해 아직 DOM에 생성되지 않은 요소의 출현을 실시간 감지하여 콜백을 실행하는 `observeSelector(root, selector, callback)` 메서드 구현                                                                 
+                                                                                                                                                                                                                                  
+    2. `app.events`:                                                                                                                                                                                                              
+       - 발행/구독(Pub/Sub) 패턴의 전역 이벤트 버스 구현 (`on`, `off`, `emit`, `once`)                                                                                                                                            
+                                                                                                                                                                                                                                  
+    3. `app.store`:                                                                                                                                                                                                               
+       - 단순 상태(State) 보관 및 상태 변경 시 구독자에게 알림을 주는 경량 반응형 스토어 구현                                                                                                                                     
+                                                                                                                                                                                                                                  
+    4. `app.api`:                                                                                                                                                                                                                 
+       - `fetch` 기반 비동기 HTTP 클라이언트 래퍼 (`request(url, options)`)                                                                                                                                                       
+       - 공통 헤더 설정, JSON 자동 파싱 및 공통 에러 interceptor/hook 구조 제공                                                                                                                                                   
+                                                                                                                                                                                                                                  
+    5. `app.createScope(scopeName)` (핵심):                                                                                                                                                                                       
+       - 특정 페이지나 컴포넌트 단위의 Scope 객체를 생성                                                                                                                                                                          
+       - 해당 Scope 내에서 등록된 Observer나 Event Listener를 추적하고, Scope 파괴(destroy/cleanup) 시 메모리 누수가 없도록 일괄 해제해주는 라이프사이클 관리 기능 포함                                                           
+                                                                                                                                                                                                                                  
+    [3. 예외 처리 및 코드 품질]                                                                                                                                                                                                   
+    - 모든 외부 실행 콜백은 안전하게 예외를 포획(try-catch)하는 `safeCall` 유틸리티를 거쳐 실행되도록 작성                                                                                                                        
+    - 코드 상단에 전체 실행 순서 및 모듈 아키텍처 구조를 설명하는 주석 포함                                                                                                                                                       
+    - 각 함수 및 모듈에 JSDoc 스타일의 주석 작성
